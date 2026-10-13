@@ -54,14 +54,15 @@ class VideoDeepfakeDetector:
             f_analysis = self.image_detector._run_inference(
                 f_img,
                 *self.image_detector._get_cached_model_tuple(),
-                faces=faces
+                faces=faces,
+                is_video_frame=True
             )
             attn_map, f_manip_score, f_conf = f_analysis[:3]
             
             frame_manip_scores.append(f_manip_score)
             f_trust = round((1.0 - f_manip_score) * 100.0, 1)
             
-            is_suspicious = f_manip_score >= 0.5
+            is_suspicious = f_manip_score >= 0.50
             if is_suspicious:
                 suspicious_timestamps.append(f_time)
                 
@@ -78,18 +79,63 @@ class VideoDeepfakeDetector:
         temporal_metrics = compute_temporal_consistency(sampled_frames)
         
         # 3. Overall score synthesis
-        # Weighted combination: 65% worst-case/average frame anomaly + 35% temporal jitter
-        avg_manip = float(np.mean(frame_manip_scores))
-        peak_manip = float(np.max(frame_manip_scores))
-        temporal_penalty = min(0.3, temporal_metrics["temporal_anomaly_count"] * 0.08 + temporal_metrics["jitter_score"] * 0.5)
+        # Robust multi-frame statistical aggregation resistant to single-frame optical/motion outliers
+        mean_manip = float(np.mean(frame_manip_scores))
+        median_manip = float(np.median(frame_manip_scores))
+        p80_manip = float(np.percentile(frame_manip_scores, 80)) if len(frame_manip_scores) >= 3 else mean_manip
         
-        combined_manip = 0.45 * avg_manip + 0.35 * peak_manip + 0.20 * temporal_penalty
+        # Check for consecutive suspicious frame streaks (characteristic of actual continuous face-swaps)
+        max_streak = 0
+        cur_streak = 0
+        for s in frame_manip_scores:
+            if s >= 0.50:
+                cur_streak += 1
+                if cur_streak > max_streak:
+                    max_streak = cur_streak
+            else:
+                cur_streak = 0
+                
+        suspicious_ratio = len(suspicious_timestamps) / max(1, len(frame_manip_scores))
+        
+        if len(frame_manip_scores) >= 3:
+            if max_streak < 2 and suspicious_ratio <= 0.25:
+                # Solitary optical/motion-blur glitch: prioritize robust median and mean
+                base_manip = (0.60 * mean_manip) + (0.40 * median_manip)
+            else:
+                # Sustained anomalies across consecutive frames
+                base_manip = (0.35 * mean_manip) + (0.45 * p80_manip) + (0.20 * median_manip)
+        else:
+            base_manip = mean_manip
+            
+        # Temporal consistency modulation
+        temporal_anomalies = temporal_metrics.get("temporal_anomaly_count", 0)
+        temporal_jitter = temporal_metrics.get("jitter_score", 0.0)
+        
+        if temporal_anomalies == 0 and temporal_jitter < 0.05:
+            # Natural camera continuity bonus
+            temporal_mod = -0.05
+        elif temporal_anomalies >= 2 or temporal_jitter > 0.15:
+            # Unnatural temporal flickering / phase jumps
+            temporal_mod = min(0.25, (temporal_anomalies * 0.06) + (temporal_jitter * 0.40))
+        else:
+            temporal_mod = 0.0
+            
+        combined_manip = base_manip + temporal_mod
+        
+        # Facial context adjustment
+        if total_faces_found == 0:
+            # Videos with zero human faces cannot contain face-swap deepfakes; dampen camera/scenery noise
+            combined_manip = combined_manip * 0.40
+        elif total_faces_found > 0 and max_streak >= 2:
+            # Sustained suspicious faces detected across frames
+            combined_manip = max(combined_manip, p80_manip)
+            
         p_manipulated = float(np.clip(combined_manip, 0.02, 0.98))
         p_authentic = float(1.0 - p_manipulated)
         
         trust_score = round(p_authentic * 100.0, 1)
         manipulation_prob = round(p_manipulated, 4)
-        model_confidence = round(0.85 + (0.10 * (len(sampled_frames) / max_frames)), 3)
+        model_confidence = round(float(np.clip(0.85 + abs(p_manipulated - 0.5) * 0.25, 0.82, 0.98)), 3)
         
         # 4. Result Categorization
         predicted_class, risk_level = self.image_detector._categorize_result(trust_score)
@@ -104,17 +150,26 @@ class VideoDeepfakeDetector:
         )
         
         # 6. Explanations
+        if trust_score >= 80.0:
+            status_text = "demonstrates high physical and temporal authenticity with consistent sensor noise and seamless inter-frame transitions"
+        elif trust_score >= 60.0:
+            status_text = "exhibits moderate authenticity consistent with standard mobile/web re-encoding"
+        elif trust_score >= 40.0:
+            status_text = "shows inconclusive characteristics with mixed forensic indicators"
+        else:
+            status_text = "exhibits strong multi-frame anomalies and temporal inconsistencies consistent with AI manipulation"
+
         explanation = (
             f"Analyzed {len(sampled_frames)} sampled frames across {metadata['duration_seconds']}s of video. "
-            f"Overall video Trust Score is {trust_score}/100 with an estimated manipulation probability of "
-            f"{round(manipulation_prob * 100, 1)}%. Detected {len(suspicious_timestamps)} suspicious frame intervals "
-            f"and {temporal_metrics['temporal_anomaly_count']} temporal transitions with elevated variance."
+            f"Overall video Trust Score is {trust_score}/100 ({predicted_class.upper()}, {risk_level.upper()} risk). "
+            f"The video {status_text}. Detected {len(suspicious_timestamps)} suspicious frame intervals "
+            f"and {temporal_metrics['temporal_anomaly_count']} elevated temporal transitions."
         )
         
         limitations = (
-            "Temporal video deepfake detection is subject to frame sampling density. Analyzing sampled frames "
-            "at controlled intervals does not guarantee detection of ultra-brief or sparsely interpolated manipulations. "
-            "Fast camera pan, motion blur, or intense video compression can induce spurious temporal anomaly signals."
+            "Temporal video deepfake forensics analyzes sampled visual frames and inter-frame optical continuity. "
+            "Sparse sampling intervals may not capture ultra-brief sub-second edits. "
+            "Heavy re-compression, aggressive platform deblocking filters, or extreme camera movement can influence confidence."
         )
 
         return {

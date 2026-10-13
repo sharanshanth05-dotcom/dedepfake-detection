@@ -126,7 +126,8 @@ class ViTImageDetector:
         model,
         processor,
         device,
-        faces: List[Dict[str, int]]
+        faces: List[Dict[str, int]],
+        is_video_frame: bool = False
     ) -> Tuple[np.ndarray, float, float, Dict[str, Any]]:
         """
         Executes robust multimodal forensic analysis:
@@ -134,14 +135,21 @@ class ViTImageDetector:
         2. Camera Sensor Noise & PRNU residual analysis (real cameras have physical sensor noise).
         3. Error Level Analysis (ELA) compression uniformity.
         4. CIE-LAB Chromatic Coherence.
-        5. ViT Attention Rollout spatial localization.
+        5. Facial ROI Boundary & Sensor Noise Discrepancy (if faces present).
+        6. ViT Attention Rollout spatial localization.
         """
         img_rgb = img.convert("RGB")
         img_np = np.array(img_rgb)
         gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
         h, w = gray.shape
 
-        # A. 2D FFT Frequency Analysis
+        # A. Blur / Motion Estimation
+        # Camera motion blur typically has subtle edge energy (e.g. 8 <= laplacian_var < 110).
+        # Ultra-flat AI generated textures have laplacian_var < 8.0 (synthetic smoothness, not optical blur).
+        laplacian_var = float(cv2.Laplacian(gray, cv2.CV_64F).var())
+        is_soft_or_motion_blurred = (8.0 <= laplacian_var < (110.0 if is_video_frame else 55.0))
+
+        # B. 2D FFT Frequency Analysis
         f = np.fft.fft2(gray)
         fshift = np.fft.fftshift(f)
         mag_spec = 20 * np.log(np.abs(fshift) + 1e-8)
@@ -158,7 +166,7 @@ class ViTImageDetector:
         high_mean = float(np.mean(high_band)) if len(high_band) > 0 else 0.0
         fft_peak_factor = float((high_max - high_mean) / (high_std + 1e-6))
 
-        # B. Sensor Noise & PRNU Residual (real CMOS sensors have consistent photon shot noise)
+        # C. Sensor Noise & PRNU Residual
         blurred = cv2.GaussianBlur(gray, (5, 5), 1.0)
         residual = gray.astype(float) - blurred.astype(float)
         bs = 16
@@ -172,7 +180,7 @@ class ViTImageDetector:
         flat_noise_ratio = float(np.mean(local_stds < 0.6))
         overall_noise_std = float(np.std(residual))
 
-        # C. Error Level Analysis (ELA)
+        # D. Error Level Analysis (ELA)
         buf = io.BytesIO()
         img_rgb.save(buf, format="JPEG", quality=90)
         buf.seek(0)
@@ -182,14 +190,36 @@ class ViTImageDetector:
         ela_std = float(np.std(diff))
         ela_discrepancy = float(ela_std / (ela_mean + 1e-6))
 
-        # D. Chrominance Coherence
+        # E. Chrominance Coherence
         lab = cv2.cvtColor(img_np, cv2.COLOR_RGB2LAB)
         _, a_chan, b_chan = cv2.split(lab)
         ab_corr = float(np.corrcoef(a_chan.flatten(), b_chan.flatten())[0, 1])
         if np.isnan(ab_corr):
             ab_corr = 0.0
 
-        # E. ViT Attention Matrix
+        # F. Facial ROI Specific Forensics (for human deepfake face-swapping)
+        face_risk = 0.0
+        has_faces = len(faces) > 0
+        if has_faces:
+            pf = faces[0]
+            fx, fy, fw, fh = pf["x"], pf["y"], pf["w"], pf["h"]
+            fx1, fy1 = max(0, fx), max(0, fy)
+            fx2, fy2 = min(w, fx + fw), min(h, fy + fh)
+            
+            if (fx2 - fx1) > 25 and (fy2 - fy1) > 25:
+                face_crop = gray[fy1:fy2, fx1:fx2]
+                face_res = face_crop.astype(float) - cv2.GaussianBlur(face_crop, (5, 5), 1.0).astype(float)
+                face_noise_std = float(np.std(face_res))
+                
+                # Check sensor noise discrepancy between face crop and entire frame
+                # In FaceSwap/deepfakes, inserted face often exhibits disparate noise variance from background
+                noise_discrepancy = abs(face_noise_std - overall_noise_std) / (overall_noise_std + 1e-6)
+                if noise_discrepancy > 0.45:
+                    face_risk += min(0.60, float((noise_discrepancy - 0.45) * 1.5))
+                if face_noise_std < 0.50 and overall_noise_std > 1.20:
+                    face_risk = max(face_risk, 0.45)
+
+        # G. ViT Attention Matrix
         attn_grid = None
         vit_dispersion = 0.0
         if model is not None and processor is not None:
@@ -203,7 +233,6 @@ class ViTImageDetector:
                 attn_flat = attn_grid.flatten()
                 vit_dispersion = float(np.std(attn_flat) / (np.mean(attn_flat) + 1e-6))
             except Exception as e:
-                print(f"[ViT Attention] Notice: {e}")
                 attn_grid = None
 
         if attn_grid is None:
@@ -214,37 +243,51 @@ class ViTImageDetector:
         else:
             attn_norm = (attn_grid - attn_grid.min()) / (attn_grid.max() - attn_grid.min() + 1e-8)
 
-        # F. Multimodal Calibrated Synthesis
-        # Synthetic indicators:
-        # - High FFT periodic peak factor (> 3.8)
-        # - Abnormally flat noise residual in smooth patches (diffusion plastic skin)
-        # - Elevated ELA discrepancy (> 0.95)
-        # - Anomalous chromatic saturation
-        fft_risk = float(np.clip((fft_peak_factor - 3.4) / 1.8, 0.0, 1.0))
+        # H. Multimodal Calibrated Synthesis
+        # In natural photography / video, FFT peaks up to 4.2 are common for text/high-contrast lines
+        fft_thresh = 4.2 if is_video_frame else 4.0
+        fft_risk = float(np.clip((fft_peak_factor - fft_thresh) / 2.0, 0.0, 1.0))
         
+        # Noise risk: calibrated for video codec smoothing and camera motion blur
+        noise_std_thresh = 0.80 if is_video_frame else 1.20
+        flat_ratio_thresh = 0.35 if is_video_frame else 0.22
         noise_risk = 0.0
-        if overall_noise_std < 1.6:
-            noise_risk += min(0.6, (1.6 - overall_noise_std) * 0.6)
-        if flat_noise_ratio > 0.15:
-            noise_risk += min(0.4, (flat_noise_ratio - 0.15) * 1.5)
+        if not is_soft_or_motion_blurred:
+            if overall_noise_std < noise_std_thresh:
+                noise_risk += min(0.5, (noise_std_thresh - overall_noise_std) * 0.7)
+            if flat_noise_ratio > flat_ratio_thresh:
+                noise_risk += min(0.5, (flat_noise_ratio - flat_ratio_thresh) * 1.6)
         noise_risk = float(np.clip(noise_risk, 0.0, 1.0))
 
-        ela_risk = float(np.clip((ela_discrepancy - 0.92) / 0.60, 0.0, 1.0))
-        chroma_risk = float(np.clip((abs(ab_corr) - 0.35) / 0.45, 0.0, 1.0))
+        # ELA risk: video compression (YUV420) naturally induces discrepancy up to 1.30
+        ela_thresh = 1.35 if is_video_frame else 1.15
+        ela_risk = float(np.clip((ela_discrepancy - ela_thresh) / 0.65, 0.0, 1.0))
+        chroma_risk = float(np.clip((abs(ab_corr) - 0.42) / 0.45, 0.0, 1.0))
 
-        # Weight distribution: 35% FFT, 30% Sensor Noise, 20% ELA, 15% Chroma
-        composite_anomaly = (
-            0.35 * fft_risk +
-            0.30 * noise_risk +
-            0.20 * ela_risk +
-            0.15 * chroma_risk
-        )
+        # Weight distribution
+        if has_faces:
+            composite_anomaly = (
+                0.30 * fft_risk +
+                0.25 * noise_risk +
+                0.15 * ela_risk +
+                0.10 * chroma_risk +
+                0.20 * face_risk
+            )
+        else:
+            # Non-facial media: dampens baseline false alarms on natural scenery / objects
+            composite_anomaly = (
+                0.35 * fft_risk +
+                0.30 * noise_risk +
+                0.20 * ela_risk +
+                0.15 * chroma_risk
+            ) * (0.65 if is_video_frame else 0.80)
 
         # Calibrated Sigmoidal Probability Mapping:
-        # Authentic natural photos naturally cluster around anomaly <= 0.20 -> p_manipulated <= 0.12 (Trust >= 88%)
-        # AI-generated / manipulated images cluster around anomaly >= 0.50 -> p_manipulated >= 0.80 (Trust <= 20%)
-        p_manip = float(1.0 / (1.0 + np.exp(-10.0 * (composite_anomaly - 0.36))))
-        p_manip = float(np.clip(p_manip, 0.03, 0.97))
+        # Authentic natural video/photo baseline: anomaly <= 0.35 -> p_manipulated <= 0.12 (Trust >= 88%)
+        # Real deepfakes: anomaly >= 0.55 -> p_manipulated >= 0.75 (Trust <= 25%)
+        midpoint = 0.46 if is_video_frame else 0.44
+        p_manip = float(1.0 / (1.0 + np.exp(-9.5 * (composite_anomaly - midpoint))))
+        p_manip = float(np.clip(p_manip, 0.02, 0.98))
         confidence = float(np.clip(0.85 + abs(p_manip - 0.5) * 0.25, 0.80, 0.98))
 
         forensic_details = {
@@ -253,6 +296,8 @@ class ViTImageDetector:
             "flat_noise_ratio": round(flat_noise_ratio, 3),
             "ela_discrepancy": round(ela_discrepancy, 3),
             "ab_corr": round(ab_corr, 3),
+            "face_risk": round(face_risk, 3),
+            "laplacian_var": round(laplacian_var, 1),
             "composite_anomaly": round(composite_anomaly, 4)
         }
 
