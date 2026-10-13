@@ -3,16 +3,22 @@ TruthLens AI — FaceForensics++ (C23) Dataset Downloader & Integrator
 Dataset: xdxd003/ff-c23 on Kaggle (~16.7 GB)
 """
 import os
-import sys
 from pathlib import Path
+
+# Explicitly direct all dataset caching to D:\college work
+D_DISK_CACHE = r"D:\college work\datasets_cache"
+os.environ["KAGGLEHUB_CACHE"] = D_DISK_CACHE
+Path(D_DISK_CACHE).mkdir(parents=True, exist_ok=True)
+
 import kagglehub
 
-def download_and_setup_ff_c23(target_dir: str = "ml/datasets/ff_c23"):
+def download_and_setup_ff_c23(target_dir: str = r"D:\college work\datasets_cache"):
     print("=" * 70)
     print("TruthLens AI — FaceForensics++ (C23) Benchmark Integrator")
     print("=" * 70)
-    print("DATASET: xdxd003/ff-c23 (FaceForensics++ C23 Compression)")
-    print("SIZE: ~16.7 GB")
+    print("STORAGE DISK: D:\\college work\\datasets_cache (Free Space: ~202 GB)")
+    print("DATASET:      xdxd003/ff-c23 (FaceForensics++ C23 Compression)")
+    print("TOTAL SIZE:   ~16.7 GB")
     print("-" * 70)
     print("Starting download via KaggleHub (this may take 15-45 minutes)...")
     
