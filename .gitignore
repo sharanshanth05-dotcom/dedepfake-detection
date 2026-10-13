@@ -56,4 +56,6 @@ Thumbs.db
 .vscode/
 .idea/
 scratch_test.jpg
-ml/datasets/
+ml/datasets/*
+!ml/datasets/*.py
+!ml/datasets/.gitkeep
