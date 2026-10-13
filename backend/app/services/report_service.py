@@ -1,8 +1,11 @@
 import json
 import os
+import io
+import base64
 from pathlib import Path
 from typing import Dict, Any, Optional
 from datetime import datetime
+from PIL import Image as PILImage
 
 try:
     from reportlab.lib.pagesizes import letter
@@ -15,7 +18,8 @@ try:
         Table,
         TableStyle,
         HRFlowable,
-        KeepTogether
+        KeepTogether,
+        Image as RLImage
     )
     HAS_REPORTLAB = True
 except ImportError:
@@ -210,13 +214,73 @@ class ForensicReportService:
         elements.append(t_score)
         elements.append(Spacer(1, 15))
         
-        # 4. Forensic Narrative & Explanation
+        # 4. Visual Evidence Inspection (Uploaded Photo & Heatmap)
+        visualizations = analysis_data.get("visualizations", {})
+        if not visualizations and "details_json" in analysis_data:
+            visualizations = (analysis_data["details_json"] or {}).get("visualizations", {})
+
+        orig_b64 = visualizations.get("original_preview", "")
+        overlay_b64 = visualizations.get("attention_overlay", "")
+
+        if orig_b64 and orig_b64.startswith("data:image"):
+            try:
+                raw_data = orig_b64.split(",", 1)[1]
+                img_bytes = base64.b64decode(raw_data)
+                pil_img = PILImage.open(io.BytesIO(img_bytes))
+                pw, ph = pil_img.size
+                aspect = ph / pw if pw > 0 else 0.75
+                
+                display_w = 230
+                display_h = min(160, max(100, int(display_w * aspect)))
+                
+                orig_buf = io.BytesIO(img_bytes)
+                rl_orig = RLImage(orig_buf, width=display_w, height=display_h)
+                
+                cell_orig = [
+                    Paragraph("<b>Uploaded Target Media</b>", body_style),
+                    Spacer(1, 4),
+                    rl_orig
+                ]
+                
+                if overlay_b64 and overlay_b64.startswith("data:image"):
+                    ov_data = overlay_b64.split(",", 1)[1]
+                    ov_bytes = base64.b64decode(ov_data)
+                    ov_buf = io.BytesIO(ov_bytes)
+                    rl_overlay = RLImage(ov_buf, width=display_w, height=display_h)
+                    
+                    cell_overlay = [
+                        Paragraph("<b>ViT Attention Discrepancy Map</b>", body_style),
+                        Spacer(1, 4),
+                        rl_overlay
+                    ]
+                    img_table = Table([[cell_orig, cell_overlay]], colWidths=[265, 265])
+                else:
+                    img_table = Table([[cell_orig]], colWidths=[530])
+                    
+                img_table.setStyle(TableStyle([
+                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f8fafc")),
+                    ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#cbd5e1")),
+                    ("TOPPADDING", (0, 0), (-1, -1), 8),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                ]))
+                
+                elements.append(Paragraph("Visual Forensic Inspection & Media Audit", heading_style))
+                elements.append(img_table)
+                elements.append(Spacer(1, 14))
+            except Exception as e:
+                pass
+
+        # 5. Forensic Narrative & Explanation
         elements.append(Paragraph("Forensic Findings & Technical Explanation", heading_style))
         explanation_text = analysis_data.get("explanation", "No detailed findings available.")
         elements.append(Paragraph(explanation_text, body_style))
         elements.append(Spacer(1, 12))
         
-        # 5. Evidence & Localized Discontinuities
+        # 6. Evidence & Localized Discontinuities
         elements.append(Paragraph("Evidence Items & Anomaly Localizations", heading_style))
         evidence_items = analysis_data.get("evidence_items", [])
         

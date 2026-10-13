@@ -145,7 +145,8 @@ async def detect_image(
         "explanation": detection_result["explanation"],
         "limitations": detection_result["limitations"],
         "evidence_items": evidence_schemas,
-        "created_at": analysis_record.created_at
+        "created_at": analysis_record.created_at,
+        "visualizations": detection_result.get("visualizations", {})
     }
     try:
         report_service.generate_json_report(report_dict)

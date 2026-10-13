@@ -144,7 +144,8 @@ def download_pdf_report(analysis_id: str, db: Session = Depends(get_db)):
                 }
                 for ev in record.evidence_items
             ],
-            "created_at": record.created_at
+            "created_at": record.created_at,
+            "visualizations": (record.details_json or {}).get("visualizations", {})
         }
         pdf_path = rep_svc.generate_pdf_report(report_dict)
         
