@@ -1,0 +1,52 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: truthlens-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root_secure_password_2026
+      MYSQL_DATABASE: truthlens_db
+      MYSQL_USER: truthlens_user
+      MYSQL_PASSWORD: truthlens_password_2026
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: truthlens-backend
+    restart: always
+    environment:
+      - DATABASE_URL=mysql+pymysql://truthlens_user:truthlens_password_2026@mysql:3306/truthlens_db
+      - SECRET_KEY=cybersecurity-secret-key-truthlens-ai-2026-production
+    ports:
+      - "8000:8000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - backend_uploads:/app/uploads
+      - backend_reports:/app/reports
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: truthlens-frontend
+    restart: always
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data:
+  backend_uploads:
+  backend_reports:

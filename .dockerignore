@@ -1,0 +1,41 @@
+# Git
+.git
+.gitignore
+
+# Frontend local files
+frontend/node_modules
+frontend/dist
+frontend/.vite
+
+# Python cache & virtual environments
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+.pytest_cache
+
+# Databases & local logs
+*.db
+*.sqlite
+*.sqlite3
+reports/*.pdf
+reports/*.json
+!reports/.gitkeep
+
+# Media uploads
+backend/uploads/*
+!backend/uploads/.gitkeep
+uploads/*
+!uploads/.gitkeep
+
+# IDE & OS
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+scratch_test.jpg
+ml/datasets/
