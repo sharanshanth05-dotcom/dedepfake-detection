@@ -202,7 +202,10 @@ class ViTImageDetector:
         has_faces = len(faces) > 0
         if has_faces:
             pf = faces[0]
-            fx, fy, fw, fh = pf["x"], pf["y"], pf["w"], pf["h"]
+            fx = int(pf.get("x", 0))
+            fy = int(pf.get("y", 0))
+            fw = int(pf.get("width", pf.get("w", 0)))
+            fh = int(pf.get("height", pf.get("h", 0)))
             fx1, fy1 = max(0, fx), max(0, fy)
             fx2, fy2 = min(w, fx + fw), min(h, fy + fh)
             

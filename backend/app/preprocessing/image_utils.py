@@ -53,7 +53,9 @@ def detect_faces(image: Image.Image) -> List[Dict[str, int]]:
             "x": int(x),
             "y": int(y),
             "width": int(w),
-            "height": int(h)
+            "height": int(h),
+            "w": int(w),
+            "h": int(h)
         })
     return results
 
