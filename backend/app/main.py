@@ -36,9 +36,10 @@ async def lifespan(app: FastAPI):
             )
             db.add(admin_user)
             
-        # Seed model registry
-        if db.query(ModelRegistry).count() == 0:
-            for card in MODEL_CARDS:
+        # Seed or update all multimodal forensic models in registry
+        for card in MODEL_CARDS:
+            existing = db.query(ModelRegistry).filter(ModelRegistry.id == card["id"]).first()
+            if not existing:
                 reg = ModelRegistry(
                     id=card["id"],
                     model_name=card["model_name"],
@@ -50,6 +51,11 @@ async def lifespan(app: FastAPI):
                     deployment_status=card["deployment_status"]
                 )
                 db.add(reg)
+            else:
+                existing.model_name = card["model_name"]
+                existing.model_version = card["model_version"]
+                existing.supported_media_type = card["supported_media_type"]
+                existing.evaluation_metrics = card["evaluation_metrics"]
                 
         db.commit()
     except Exception as e:

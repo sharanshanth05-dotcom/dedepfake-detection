@@ -78,6 +78,7 @@ MODEL_CARDS = [
     }
 ]
 
+@router.get("", include_in_schema=False)
 @router.get("/")
 def list_models(db: Session = Depends(get_db)):
     """Returns active deep learning detectors in the Model Registry."""
