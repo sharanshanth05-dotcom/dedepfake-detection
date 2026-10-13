@@ -1,18 +1,31 @@
 import numpy as np
 from pathlib import Path
 from typing import Tuple, List, Dict, Any, Optional
-import soundfile as sf
+try:
+    import soundfile as sf
+except ImportError:
+    sf = None
+import scipy.io.wavfile as wavfile
 from scipy import signal
 
 TARGET_SAMPLE_RATE = 16000
 
 def load_and_standardize_audio(audio_path: Path) -> Tuple[np.ndarray, int, Dict[str, Any]]:
     """
-    Loads audio file via soundfile, converts stereo to mono,
+    Loads audio file via soundfile (or scipy.io.wavfile fallback), converts stereo to mono,
     resamples to 16kHz if needed, and returns normalized waveform.
     """
     try:
-        data, sample_rate = sf.read(str(audio_path))
+        if sf is not None:
+            data, sample_rate = sf.read(str(audio_path))
+        else:
+            sample_rate, data = wavfile.read(str(audio_path))
+            if data.dtype == np.int16:
+                data = data.astype(np.float32) / 32768.0
+            elif data.dtype == np.int32:
+                data = data.astype(np.float32) / 2147483648.0
+            elif data.dtype == np.uint8:
+                data = (data.astype(np.float32) - 128.0) / 128.0
     except Exception as e:
         raise ValueError(f"Failed to read audio file format: {str(e)}")
         
