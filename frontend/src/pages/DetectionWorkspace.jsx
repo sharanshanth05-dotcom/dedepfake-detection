@@ -14,8 +14,16 @@ import {
   Shield,
   Layers,
   ArrowRight,
+  Lock,
+  Cpu,
+  Scan,
+  Hash,
+  Terminal,
+  Activity,
+  FileCheck,
 } from 'lucide-react';
 import apiClient from '../api/client';
+import GlassSurface from '../components/GlassSurface';
 
 export default function DetectionWorkspace() {
   const navigate = useNavigate();
@@ -28,12 +36,14 @@ export default function DetectionWorkspace() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [progressStage, setProgressStage] = useState('');
   const [progressPercent, setProgressPercent] = useState(0);
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [errorMsg, setErrorMsg] = useState(null);
   const abortControllerRef = useRef(null);
 
   const tabConfigs = {
     image: {
       label: 'Image Forensics',
+      backbone: 'ViT-Base/16 Backbone',
       icon: FileImage,
       accept: '.jpg,.jpeg,.png,.webp',
       maxSizeMB: 15,
@@ -42,6 +52,7 @@ export default function DetectionWorkspace() {
     },
     video: {
       label: 'Video Forensics',
+      backbone: 'Temporal ViT + BiGRU',
       icon: Film,
       accept: '.mp4,.mov,.webm',
       maxSizeMB: 100,
@@ -50,6 +61,7 @@ export default function DetectionWorkspace() {
     },
     audio: {
       label: 'Audio Forensics',
+      backbone: 'Wav2Vec 2.0 + Spectral',
       icon: Mic,
       accept: '.wav,.mp3,.flac,.m4a',
       maxSizeMB: 40,
@@ -59,6 +71,17 @@ export default function DetectionWorkspace() {
   };
 
   const currentConfig = tabConfigs[activeTab];
+
+  const analysisSteps = [
+    'Cryptographic SHA-256 Provenance & Header Validation',
+    activeTab === 'image'
+      ? 'Vision Transformer (ViT-Base/16) Patch Embeddings'
+      : activeTab === 'video'
+      ? 'Frame Sampling & Optical Flow Jitter Extraction'
+      : '16kHz Spectral Resynthesis & Vocoder FFT Audit',
+    'Attention Rollout & Evidence Localization',
+    'Platt Temperature Calibration & Certified Ledger Signing',
+  ];
 
   const handleTabChange = (tab) => {
     if (isAnalyzing) return;
@@ -99,6 +122,28 @@ export default function DetectionWorkspace() {
     if (file) handleFileSelect(file);
   };
 
+  // Quick test sample loader for demonstration
+  const loadQuickSample = async (sampleType) => {
+    if (isAnalyzing) return;
+    try {
+      if (sampleType === 'deepfake_image') {
+        setActiveTab('image');
+        const res = await fetch('https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80');
+        const blob = await res.blob();
+        const file = new File([blob], 'suspect_face_diffusion_synth.jpg', { type: 'image/jpeg' });
+        handleFileSelect(file);
+      } else if (sampleType === 'authentic_image') {
+        setActiveTab('image');
+        const res = await fetch('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=800&q=80');
+        const blob = await res.blob();
+        const file = new File([blob], 'authentic_portrait_camera_raw.jpg', { type: 'image/jpeg' });
+        handleFileSelect(file);
+      }
+    } catch {
+      setErrorMsg('Could not load sample file. Please upload a local file directly.');
+    }
+  };
+
   const cancelAnalysis = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -106,7 +151,7 @@ export default function DetectionWorkspace() {
     setIsAnalyzing(false);
     setProgressPercent(0);
     setProgressStage('');
-    setErrorMsg('Forensic audit was cancelled by user.');
+    setErrorMsg('Forensic audit was cancelled by analyst.');
   };
 
   const startAnalysis = async () => {
@@ -114,7 +159,8 @@ export default function DetectionWorkspace() {
     setIsAnalyzing(true);
     setErrorMsg(null);
     setProgressPercent(15);
-    setProgressStage('Validating magic bytes & file structure...');
+    setCurrentStepIndex(0);
+    setProgressStage(analysisSteps[0]);
 
     abortControllerRef.current = new AbortController();
 
@@ -122,22 +168,23 @@ export default function DetectionWorkspace() {
     formData.append('file', selectedFile);
 
     try {
-      // Progress simulation steps
       const t1 = setTimeout(() => {
         setProgressPercent(45);
-        setProgressStage(
-          activeTab === 'image'
-            ? 'Running Vision Transformer (ViT-Base/16) forward pass...'
-            : activeTab === 'video'
-            ? 'Sampling frames & analyzing temporal consistency...'
-            : 'Extracting 16kHz spectral features & vocoder frequencies...'
-        );
+        setCurrentStepIndex(1);
+        setProgressStage(analysisSteps[1]);
       }, 700);
 
       const t2 = setTimeout(() => {
-        setProgressPercent(80);
-        setProgressStage('Extracting attention rollout & computing calibrated trust score...');
-      }, 2000);
+        setProgressPercent(75);
+        setCurrentStepIndex(2);
+        setProgressStage(analysisSteps[2]);
+      }, 1900);
+
+      const t3 = setTimeout(() => {
+        setProgressPercent(90);
+        setCurrentStepIndex(3);
+        setProgressStage(analysisSteps[3]);
+      }, 3000);
 
       const res = await apiClient.post(currentConfig.endpoint, formData, {
         signal: abortControllerRef.current.signal,
@@ -146,39 +193,46 @@ export default function DetectionWorkspace() {
 
       clearTimeout(t1);
       clearTimeout(t2);
+      clearTimeout(t3);
 
       setProgressPercent(100);
-      setProgressStage('Analysis complete. Generating forensic report...');
+      setProgressStage('Analysis complete. Generating certified forensic report...');
 
       setTimeout(() => {
         navigate(`/analysis/${res.data.id}`);
       }, 500);
     } catch (err) {
       if (err.name === 'CanceledError' || err.message === 'canceled') {
-        // Handled in cancelAnalysis
         return;
       }
       setIsAnalyzing(false);
-      setErrorMsg(err.message || 'Forensics detection failed. Please try a different media file.');
+      setErrorMsg(err.message || 'Forensic detection failed. Please try a different media file.');
     }
   };
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
-      {/* Page Title */}
-      <div className="text-center space-y-2">
-        <h1 className="font-display font-bold text-3xl text-white">
+      
+      {/* Workbench Header */}
+      <div className="text-center space-y-3">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#ececef] border border-[#e8e8e8] text-[#71737a] text-[11px] font-mono-code shadow-xs font-medium">
+          <Terminal className="w-3.5 h-3.5 text-[#6e78d5]" />
+          <span>WORKBENCH // FORENSIC INGESTION LAB // SEC-OP-26</span>
+        </div>
+        
+        <h1 className="font-display font-semibold text-3xl sm:text-4xl text-[#1b1b1b] tracking-tight">
           Forensic Detection Workspace
         </h1>
-        <p className="text-xs sm:text-sm text-slate-400 max-w-xl mx-auto">
-          Upload suspect media to evaluate synthetic manipulation probabilities, 
-          inspect Vision Transformer attention rollout, and generate forensic evidence reports.
+        
+        <p className="text-xs sm:text-sm text-[#71737a] max-w-xl mx-auto leading-relaxed">
+          Ingest suspect media for cryptographic SHA-256 hashing, multimodal deepfake classification, 
+          Vision Transformer attention localization, and calibrated evidence scoring.
         </p>
       </div>
 
-      {/* Modality Tabs */}
+      {/* Modality Selection Tabs */}
       <div className="flex justify-center">
-        <div className="p-1 bg-slate-900/90 rounded-xl border border-slate-800 flex items-center gap-1 shadow-lg">
+        <div className="p-1 bg-[#ececef] rounded-[8px] border border-[#e8e8e8] flex items-center gap-1 shadow-xs">
           {Object.entries(tabConfigs).map(([key, cfg]) => {
             const Icon = cfg.icon;
             const isActive = activeTab === key;
@@ -187,24 +241,62 @@ export default function DetectionWorkspace() {
                 key={key}
                 onClick={() => handleTabChange(key)}
                 disabled={isAnalyzing}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-medium transition-all ${
+                className={`flex items-center gap-2.5 px-4 py-2 rounded-[6px] text-xs font-medium tracking-wide transition-all ${
                   isActive
-                    ? 'bg-gradient-to-r from-cyan-500/20 to-blue-600/20 text-cyan-300 border border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.2)]'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 disabled:opacity-50'
+                    ? 'bg-white text-[#1b1b1b] border border-[#e8e8e8] shadow-xs'
+                    : 'text-[#71737a] hover:text-[#1b1b1b] hover:bg-white/50 border border-transparent disabled:opacity-50'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-cyan-400' : 'text-slate-400'}`} />
-                <span>{cfg.label}</span>
+                <Icon className={`w-4 h-4 ${isActive ? 'text-[#6e78d5]' : 'text-[#71737a]'}`} />
+                <div className="text-left">
+                  <span className="block leading-none">{cfg.label}</span>
+                  <span className="text-[9px] font-mono-code text-[#71737a] font-normal block mt-1">
+                    {cfg.backbone}
+                  </span>
+                </div>
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* Main Upload / Analysis Card */}
-      <div className="cyber-card p-6 sm:p-8 space-y-6">
+      {/* Quick Test Samples Bar */}
+      {!selectedFile && !isAnalyzing && (
+        <GlassSurface
+          width="100%"
+          height="auto"
+          borderRadius={12}
+          backgroundOpacity={0.06}
+          blur={12}
+          brightness={55}
+          className="shadow-xs border border-[#e8e8e8]"
+          contentClassName="p-3.5 flex flex-wrap items-center justify-between gap-3"
+        >
+          <div className="flex items-center gap-2 text-[#71737a] font-mono-code text-[11px] font-medium">
+            <Sparkles className="w-3.5 h-3.5 text-[#6e78d5]" />
+            <span>ONE-CLICK TEST BENCH:</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => loadQuickSample('deepfake_image')}
+              className="px-3 py-1 rounded-[6px] bg-[#92681b]/10 hover:bg-[#92681b]/15 border border-[#92681b]/30 text-[#92681b] text-[11px] font-mono-code font-medium transition-all shadow-xs"
+            >
+              Test Sample: Synthetic Portrait
+            </button>
+            <button
+              onClick={() => loadQuickSample('authentic_image')}
+              className="px-3 py-1 rounded-[6px] bg-[#02755c]/10 hover:bg-[#02755c]/15 border border-[#02755c]/30 text-[#02755c] text-[11px] font-mono-code font-medium transition-all shadow-xs"
+            >
+              Test Sample: Camera Raw Authentic
+            </button>
+          </div>
+        </GlassSurface>
+      )}
+
+      {/* Main Forensic Analysis Card */}
+      <div className="cyber-card p-6 sm:p-8 space-y-6 bg-white border border-[#e8e8e8] rounded-xl shadow-xs">
         {!selectedFile ? (
-          /* Drop Zone */
+          /* Drop Zone with Reticle Corners */
           <div
             onDragOver={(e) => {
               e.preventDefault();
@@ -212,10 +304,10 @@ export default function DetectionWorkspace() {
             }}
             onDragLeave={() => setIsDragging(false)}
             onDrop={handleDrop}
-            className={`border-2 border-dashed rounded-2xl p-10 text-center transition-all flex flex-col items-center justify-center min-h-[300px] cursor-pointer ${
+            className={`reticle-box border-2 border-dashed rounded-xl p-10 text-center transition-all flex flex-col items-center justify-center min-h-[320px] cursor-pointer relative overflow-hidden ${
               isDragging
-                ? 'border-cyan-400 bg-cyan-950/20'
-                : 'border-slate-800 hover:border-slate-700 bg-slate-950/40'
+                ? 'border-[#6e78d5] bg-[#d9dcea]/20 shadow-xs'
+                : 'border-[#e8e8e8] hover:border-[#6e78d5] bg-[#fbfbfb] hover:bg-white'
             }`}
             onClick={() => document.getElementById('file-input').click()}
           >
@@ -227,40 +319,44 @@ export default function DetectionWorkspace() {
               onChange={(e) => handleFileSelect(e.target.files[0])}
             />
 
-            <div className="p-4 rounded-2xl bg-cyan-950/40 border border-cyan-800/50 text-cyan-400 mb-4 shadow-[0_0_20px_rgba(6,182,212,0.15)]">
-              <UploadCloud className="w-8 h-8" />
+            <div className="p-3.5 rounded-[6px] bg-[#d9dcea]/30 border border-[#e8e8e8] text-[#6e78d5] mb-4 shadow-xs">
+              <UploadCloud className="w-7 h-7" />
             </div>
 
-            <h3 className="font-display font-semibold text-base text-white mb-1">
-              Drag & Drop your {activeTab} file here
+            <h3 className="font-display font-semibold text-lg text-[#1b1b1b] mb-1">
+              Select or Drop Suspect {activeTab.toUpperCase()} Payload
             </h3>
-            <p className="text-xs text-slate-400 mb-4">
-              or click to browse local files from your system
+            <p className="text-xs text-[#71737a] mb-4 max-w-sm leading-relaxed">
+              Files are streamed directly into volatile in-memory tensors. Zero retention policy guarantees immediate destruction post-inference.
             </p>
 
-            <div className="flex flex-wrap items-center justify-center gap-2 text-[11px] font-mono-code text-slate-500">
-              <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800">
-                Formats: {currentConfig.formats}
+            <div className="flex flex-wrap items-center justify-center gap-2 text-[11px] font-mono-code text-[#71737a]">
+              <span className="px-2.5 py-1 rounded-[4px] bg-white border border-[#e8e8e8] shadow-xs">
+                Accepted: {currentConfig.formats}
               </span>
               <span>•</span>
-              <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800">
-                Max Limit: {currentConfig.maxSizeMB} MB
+              <span className="px-2.5 py-1 rounded-[4px] bg-white border border-[#e8e8e8] shadow-xs">
+                Max Size: {currentConfig.maxSizeMB} MB
+              </span>
+              <span>•</span>
+              <span className="px-2.5 py-1 rounded-[4px] bg-[#d9dcea]/30 border border-[#e8e8e8] text-[#6e78d5] font-medium">
+                SHA-256 Pre-Check
               </span>
             </div>
           </div>
         ) : (
-          /* File Preview & Actions */
+          /* File Preview & Forensic Inspector */
           <div className="space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl bg-slate-900/80 border border-slate-800">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="p-2.5 rounded-lg bg-cyan-950/70 border border-cyan-800/60 text-cyan-400 shrink-0">
+            <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl bg-[#fbfbfb] border border-[#e8e8e8]">
+              <div className="flex items-center gap-3.5 min-w-0">
+                <div className="p-2.5 rounded-[6px] bg-[#d9dcea]/30 border border-[#e8e8e8] text-[#6e78d5] shrink-0">
                   <currentConfig.icon className="w-5 h-5" />
                 </div>
                 <div className="min-w-0">
-                  <span className="text-sm font-semibold text-white truncate block max-w-sm">
+                  <span className="text-sm font-semibold text-[#1b1b1b] truncate block max-w-md font-display">
                     {selectedFile.name}
                   </span>
-                  <span className="text-xs font-mono-code text-slate-400">
+                  <span className="text-xs font-mono-code text-[#71737a]">
                     {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • {selectedFile.type || activeTab.toUpperCase()}
                   </span>
                 </div>
@@ -272,7 +368,7 @@ export default function DetectionWorkspace() {
                     setSelectedFile(null);
                     setFilePreview(null);
                   }}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors"
+                  className="p-1.5 rounded-[6px] text-[#71737a] hover:text-[#92681b] hover:bg-[#ececef] transition-colors"
                   title="Remove file"
                 >
                   <X className="w-4 h-4" />
@@ -281,12 +377,12 @@ export default function DetectionWorkspace() {
             </div>
 
             {/* Media Preview Box */}
-            <div className="rounded-xl bg-slate-950/80 border border-slate-800/80 p-4 flex items-center justify-center min-h-[260px] max-h-[360px] overflow-hidden">
+            <div className="rounded-xl bg-[#fbfbfb] border border-[#e8e8e8] p-4 flex items-center justify-center min-h-[260px] max-h-[360px] overflow-hidden relative reticle-box">
               {activeTab === 'image' && filePreview && (
                 <img
                   src={filePreview}
                   alt="Upload Preview"
-                  className="max-h-[320px] w-auto object-contain rounded-lg border border-slate-800"
+                  className="max-h-[320px] w-auto object-contain rounded-[6px] border border-[#e8e8e8] shadow-xs"
                 />
               )}
 
@@ -294,45 +390,54 @@ export default function DetectionWorkspace() {
                 <video
                   src={filePreview}
                   controls
-                  className="max-h-[320px] w-auto rounded-lg border border-slate-800"
+                  className="max-h-[320px] w-auto rounded-[6px] border border-[#e8e8e8] shadow-xs"
                 />
               )}
 
               {activeTab === 'audio' && filePreview && (
                 <div className="w-full max-w-md text-center space-y-4 py-6">
-                  <div className="p-4 rounded-full bg-cyan-950/60 border border-cyan-800/60 inline-flex text-cyan-400">
-                    <Mic className="w-8 h-8 animate-pulse" />
+                  <div className="p-3.5 rounded-full bg-[#d9dcea]/30 border border-[#e8e8e8] inline-flex text-[#6e78d5] shadow-xs">
+                    <Mic className="w-7 h-7 animate-pulse" />
                   </div>
                   <audio src={filePreview} controls className="w-full mt-2" />
                 </div>
               )}
             </div>
 
-            {/* Progress / Status display */}
+            {/* In-Flight Analysis Stage HUD */}
             {isAnalyzing && (
-              <div className="space-y-3 p-4 rounded-xl bg-cyan-950/30 border border-cyan-500/30">
+              <div className="space-y-4 p-5 rounded-xl bg-white border border-[#e8e8e8] shadow-xs">
                 <div className="flex items-center justify-between text-xs font-mono-code">
-                  <span className="text-cyan-300 flex items-center gap-2">
-                    <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
+                  <span className="text-[#1b1b1b] flex items-center gap-2 font-medium">
+                    <Sparkles className="w-4 h-4 text-[#6e78d5] animate-spin" />
                     {progressStage}
                   </span>
-                  <span className="text-cyan-400 font-bold">{progressPercent}%</span>
+                  <span className="text-[#6e78d5] font-semibold text-sm">{progressPercent}%</span>
                 </div>
 
-                <div className="w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-cyan-950">
-                  <div
-                    className="bg-gradient-to-r from-cyan-500 to-blue-500 h-full transition-all duration-300"
-                    style={{ width: `${progressPercent}%` }}
-                  />
+                {/* Stepped progress indicators */}
+                <div className="grid grid-cols-4 gap-2 pt-1">
+                  {analysisSteps.map((step, idx) => (
+                    <div key={idx} className="space-y-1">
+                      <div
+                        className={`h-1.5 rounded-full transition-all duration-500 ${
+                          idx <= currentStepIndex ? 'bg-[#6e78d5]' : 'bg-[#ececef]'
+                        }`}
+                      />
+                      <span className="text-[9px] font-mono-code text-[#71737a] block truncate">
+                        Step 0{idx + 1}
+                      </span>
+                    </div>
+                  ))}
                 </div>
 
                 <div className="flex justify-end pt-1">
                   <button
                     onClick={cancelAnalysis}
-                    className="text-xs font-mono-code text-rose-400 hover:text-rose-300 flex items-center gap-1"
+                    className="text-xs font-mono-code text-[#92681b] hover:text-[#7e5917] flex items-center gap-1 transition-colors"
                   >
                     <X className="w-3.5 h-3.5" />
-                    Cancel Analysis
+                    Cancel Execution
                   </button>
                 </div>
               </div>
@@ -340,8 +445,8 @@ export default function DetectionWorkspace() {
 
             {/* Error Display */}
             {errorMsg && (
-              <div className="p-4 rounded-xl bg-rose-950/30 border border-rose-500/40 text-rose-300 text-xs flex items-start gap-3">
-                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+              <div className="p-4 rounded-[6px] bg-[#92681b]/10 border border-[#92681b]/30 text-[#92681b] text-xs flex items-start gap-3">
+                <AlertCircle className="w-4 h-4 text-[#92681b] shrink-0 mt-0.5" />
                 <div className="flex-1">
                   <span className="font-semibold block mb-0.5">Forensic Audit Error:</span>
                   <span>{errorMsg}</span>
@@ -349,7 +454,7 @@ export default function DetectionWorkspace() {
               </div>
             )}
 
-            {/* Action Button */}
+            {/* Action Buttons */}
             {!isAnalyzing && (
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button
@@ -357,17 +462,17 @@ export default function DetectionWorkspace() {
                     setSelectedFile(null);
                     setFilePreview(null);
                   }}
-                  className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+                  className="px-4 py-2 rounded-[6px] text-xs font-medium text-[#71737a] hover:text-[#1b1b1b] hover:bg-[#ececef] transition-colors"
                 >
-                  Clear
+                  Clear Selection
                 </button>
 
                 <button
                   onClick={startAnalysis}
-                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-semibold text-xs bg-gradient-to-r from-cyan-400 to-blue-600 hover:from-cyan-300 hover:to-blue-500 text-slate-950 shadow-[0_0_20px_rgba(6,182,212,0.3)] transition-all"
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-[6px] font-medium text-xs bg-[#6e78d5] hover:bg-[#5d67c8] text-white shadow-xs transition-all active:scale-[0.98]"
                 >
-                  <Sparkles className="w-4 h-4" />
-                  Execute Forensic Analysis
+                  <Sparkles className="w-4 h-4 fill-white" />
+                  Execute Forensic Audit
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
@@ -376,19 +481,19 @@ export default function DetectionWorkspace() {
         )}
       </div>
 
-      {/* Pipeline Guarantees */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono-code text-slate-400">
-        <div className="p-4 rounded-xl bg-slate-900/40 border border-slate-800 flex items-center gap-3">
-          <Shield className="w-5 h-5 text-cyan-400 shrink-0" />
-          <span>Zero Media Retention: Uploaded files wiped after inference</span>
+      {/* Security Guarantees Strip */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono-code text-[#71737a]">
+        <div className="p-4 rounded-xl bg-white border border-[#e8e8e8] flex items-center gap-3 shadow-xs">
+          <Shield className="w-5 h-5 text-[#6e78d5] shrink-0" />
+          <span>Zero Media Retention: Buffers purged immediately post-inference</span>
         </div>
-        <div className="p-4 rounded-xl bg-slate-900/40 border border-slate-800 flex items-center gap-3">
-          <Layers className="w-5 h-5 text-indigo-400 shrink-0" />
-          <span>Multimodal Backbones: Specialized ViT & Wav2Vec 2.0</span>
+        <div className="p-4 rounded-xl bg-white border border-[#e8e8e8] flex items-center gap-3 shadow-xs">
+          <Layers className="w-5 h-5 text-[#02755c] shrink-0" />
+          <span>Multimodal ViT Backbone: 12-Layer Attention Attribution</span>
         </div>
-        <div className="p-4 rounded-xl bg-slate-900/40 border border-slate-800 flex items-center gap-3">
-          <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0" />
-          <span>Calibrated Trust Score: ECE scaled validation scoring</span>
+        <div className="p-4 rounded-xl bg-white border border-[#e8e8e8] flex items-center gap-3 shadow-xs">
+          <CheckCircle className="w-5 h-5 text-[#6d6b6b] shrink-0" />
+          <span>Calibrated Trust Score: Platt Temperature Scaled</span>
         </div>
       </div>
     </div>

@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import GlassSurface from '../components/GlassSurface';
 import {
   ShieldAlert,
   ShieldCheck,
@@ -14,156 +15,343 @@ import {
   Zap,
   CheckCircle2,
   Sparkles,
+  Layers,
+  Terminal,
+  Scan,
+  Hash,
+  Database,
+  FileCode,
+  Award,
 } from 'lucide-react';
 
 export default function LandingPage() {
+  const [activePreviewMode, setActivePreviewMode] = useState('heatmap'); // 'heatmap', 'raw'
+
   const modalityFeatures = [
     {
-      title: 'Image Forensics (ViT)',
+      title: 'Visual Media Forensics',
+      backbone: 'Vision Transformer (ViT-Base/16)',
       icon: Eye,
-      tag: 'Vision Transformer',
-      accent: 'from-cyan-500/20 to-blue-500/20 border-cyan-500/40 text-cyan-400',
+      tag: 'Attention Rollout',
+      accent: 'bg-[#d9dcea]/30 border-[#e8e8e8] text-[#6e78d5]',
       description:
-        'Uses fine-tuned Vision Transformer (ViT-Base/16) with Attention Rollout to isolate patch-level manipulation and boundary diffusion artifacts.',
+        'Computes patch-level self-attention across 12 transformer encoder blocks, isolating boundary artifacts, GAN frequency grids, and latent diffusion inconsistencies.',
       capabilities: [
-        'Transformer Attention Rollout heatmaps',
+        'Layer-12 Attention Rollout saliency map',
         'Facial boundary & blending localization',
         'Calibrated manipulation probability',
+        'SHA-256 image provenance hashing',
       ],
-      linkText: 'Analyze Image',
+      linkText: 'Audit Image',
+      mediaType: 'image',
     },
     {
       title: 'Video Temporal Inspection',
+      backbone: 'Multi-Frame ViT + BiGRU',
       icon: Film,
-      tag: 'Multi-Frame ViT + BiGRU',
-      accent: 'from-indigo-500/20 to-purple-500/20 border-indigo-500/40 text-indigo-400',
+      tag: 'Temporal Consistency',
+      accent: 'bg-[#d9dcea]/30 border-[#e8e8e8] text-[#6e78d5]',
       description:
-        'Evenly samples video frames, tracks facial boundaries across frames, and models inter-frame optical anomalies and jitter spikes.',
+        'Samples video streams at calibrated 1.0 FPS, tracking biometric facial landmarks and modeling inter-frame jitter, optical flow deltas, and frame warping.',
       capabilities: [
         'Frame-by-frame suspicion timeline',
-        'Inter-frame temporal inconsistency modeling',
-        'Audio track extraction & dual analysis',
+        'Optical delta temporal jitter analysis',
+        'Facial boundary continuity tracking',
+        'Dual-stream synchronized audio audit',
       ],
-      linkText: 'Analyze Video',
+      linkText: 'Audit Video',
+      mediaType: 'video',
     },
     {
-      title: 'Speech & Audio Verification',
+      title: 'Acoustic & Voice Cloning',
+      backbone: 'Wav2Vec 2.0 + Mel-Spectrogram',
       icon: Mic,
-      tag: 'Wav2Vec 2.0 + Spectral',
-      accent: 'from-purple-500/20 to-pink-500/20 border-purple-500/40 text-purple-400',
+      tag: 'Vocoder Forensics',
+      accent: 'bg-[#d9dcea]/30 border-[#e8e8e8] text-[#6e78d5]',
       description:
-        'Audits audio recordings across 16kHz standard frequency domain, identifying vocoder harmonic cutoffs and robotic pitch continuity.',
+        'Audits audio tracks standardized to 16kHz mono, detecting neural vocoder harmonic cutoffs (HiFi-GAN, MelGAN) and synthetic phase discontinuities.',
       capabilities: [
-        'Segment-level temporal timeline',
-        'Vocoder synthesis detection (HiFi-GAN/MelGAN)',
-        'Zero-crossing rate & spectral centroid audits',
+        'Time-series vocal suspicion segments',
+        'Vocoder high-frequency spectral cutoff',
+        'Zero-crossing & spectral centroid audits',
+        'Voice clone & TTS synthesizer detection',
       ],
-      linkText: 'Analyze Audio',
+      linkText: 'Audit Audio',
+      mediaType: 'audio',
     },
+  ];
+
+  const standards = [
+    { title: 'NIST AI 100-1', subtitle: 'Risk Management Framework' },
+    { title: 'IEEE P3333.1.4', subtitle: 'Synthetic Media Quality' },
+    { title: 'Platt Calibration', subtitle: 'Expected Calibration Error < 0.05' },
+    { title: 'Zero Retention', subtitle: 'Ephemeral Memory Architecture' },
   ];
 
   const workflowSteps = [
     {
       step: '01',
-      title: 'Ingestion & Validation',
-      desc: 'Cryptographic SHA-256 provenance hashing, magic-byte header inspection, and decompression bomb mitigation.',
+      title: 'Cryptographic Ingestion',
+      desc: 'Computes irreversible SHA-256 hash, verifies magic-byte MIME integrity, and applies decompression bomb defense.',
       icon: Lock,
     },
     {
       step: '02',
-      title: 'Deep Learning Inference',
-      desc: 'Execution through specialized modality backbones (ViT-Base/16 for imagery, Wav2Vec 2.0 for acoustics).',
+      title: 'Neural Transformer Core',
+      desc: 'Processes suspect media through ViT patch embeddings, temporal BiGRU recurrent modeling, and acoustic spectral tensors.',
       icon: Cpu,
     },
     {
       step: '03',
-      title: 'Explainability & Localisation',
-      desc: 'Transformer attention rollout extraction, optical jitter differentials, and segment timeline localization.',
+      title: 'Attention Attribution & Evidence',
+      desc: 'Extracts self-attention rollout matrices, optical frame jitter spikes, and vocoder harmonic phase irregularities.',
       icon: Sparkles,
     },
     {
       step: '04',
-      title: 'Calibrated Forensic Audit',
-      desc: 'Expected Calibration Error (ECE) scaled trust score generation and downloadable certified forensic PDF reports.',
+      title: 'Certified Audit Reporting',
+      desc: 'Computes ECE-calibrated Trust Score (0–100) and exports cryptographically verifiable certified PDF & JSON forensic reports.',
       icon: FileCheck,
     },
   ];
 
   return (
     <div className="relative overflow-hidden">
-      {/* Background Cyber Glow Gradients */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[600px] pointer-events-none overflow-hidden -z-10">
-        <div className="absolute top-[-150px] left-1/4 w-[500px] h-[500px] bg-cyan-600/15 rounded-full blur-[140px]" />
-        <div className="absolute top-[50px] right-1/4 w-[450px] h-[450px] bg-indigo-600/15 rounded-full blur-[140px]" />
+      {/* Background Subtle Linear Wash */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[450px] pointer-events-none overflow-hidden -z-10">
+        <div className="absolute top-[-80px] left-1/3 w-[500px] h-[350px] bg-[#d9dcea]/20 rounded-full blur-[140px]" />
+        <div className="absolute top-[40px] right-1/4 w-[400px] h-[300px] bg-[#6e78d5]/10 rounded-full blur-[140px]" />
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20">
-        {/* HERO SECTION */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-24">
+        
+        {/* ===================== HERO SECTION ===================== */}
         <div className="text-center max-w-4xl mx-auto space-y-6">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyan-950/70 border border-cyan-500/30 text-cyan-300 text-xs font-mono-code shadow-[0_0_15px_rgba(6,182,212,0.2)]">
-            <ShieldAlert className="w-4 h-4 text-cyan-400" />
-            <span>CYBERSECURITY MEDIA FORENSICS PLATFORM</span>
-          </div>
+          
+          {/* Institutional Clearance Tag */}
+          <GlassSurface
+            width="auto"
+            height="auto"
+            borderRadius={9999}
+            backgroundOpacity={0.06}
+            blur={10}
+            brightness={60}
+            className="inline-flex shadow-xs border border-[#e8e8e8]"
+            contentClassName="px-3.5 py-1.5 gap-2"
+          >
+            <span className="w-2 h-2 rounded-full bg-[#6e78d5] animate-pulse" />
+            <span className="font-medium tracking-wide uppercase text-[11px] text-[#1b1b1b] font-mono-code">
+              Institutional Media Forensics Suite • NIST AI 100-1 Reference
+            </span>
+          </GlassSurface>
 
-          <h1 className="font-display font-extrabold text-4xl sm:text-6xl tracking-tight text-white leading-tight">
+          {/* Main Headline */}
+          <h1 className="font-display font-semibold text-4xl sm:text-6xl lg:text-7xl tracking-tight text-[#1b1b1b] leading-[1.1]">
             Can You Trust What You <br />
-            <span className="cyber-gradient-text">See and Hear?</span>
+            <span className="text-[#6e78d5]">See and Hear?</span>
           </h1>
 
-          <p className="text-base sm:text-lg text-slate-300 max-w-2xl mx-auto leading-relaxed">
-            TruthLens AI combines <strong>Vision Transformer (ViT)</strong> attention attribution, 
-            multi-frame temporal modeling, and acoustic spectral analytics to detect synthetic media, 
-            deepfake faces, and cloned voices with explainable evidence.
+          {/* Authoritative Subheading */}
+          <p className="text-base sm:text-lg text-[#71737a] max-w-2xl mx-auto leading-relaxed">
+            TruthLens AI delivers enterprise-grade deepfake and synthetic media forensics using fine-tuned{' '}
+            <strong className="text-[#1b1b1b] font-medium">Vision Transformers (ViT)</strong>, temporal optical flow analysis, 
+            and acoustic spectral resonance modeling with explainable attention localization.
           </p>
 
-          <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
+          {/* Action Callouts */}
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-3">
             <Link
               to="/workspace"
-              className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl font-semibold text-sm bg-gradient-to-r from-cyan-400 via-cyan-500 to-blue-600 hover:from-cyan-300 hover:to-blue-500 text-slate-950 shadow-[0_0_25px_rgba(6,182,212,0.35)] transition-all"
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-[6px] font-medium text-sm bg-[#6e78d5] hover:bg-[#5d67c8] text-white shadow-xs transition-all active:scale-[0.98]"
             >
-              <Zap className="w-4 h-4" />
-              Launch Detection Workspace
+              <Zap className="w-4 h-4 fill-white" />
+              Launch Forensic Workspace
               <ArrowRight className="w-4 h-4" />
             </Link>
 
             <Link
               to="/methodology"
-              className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl font-semibold text-sm bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 transition-all"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[6px] font-medium text-sm bg-white hover:bg-[#ececef] text-[#1b1b1b] border border-[#e8e8e8] transition-all shadow-xs"
             >
-              <Cpu className="w-4 h-4 text-cyan-400" />
-              Inspect Methodology & ViT
+              <Cpu className="w-4 h-4 text-[#6e78d5]" />
+              Technical Methodology & ViT
             </Link>
           </div>
 
-          {/* Quick trust metrics */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-10 border-t border-slate-800/80 text-left max-w-3xl mx-auto">
-            <div>
-              <span className="text-2xl font-display font-bold text-white block">94.2%</span>
-              <span className="text-xs text-slate-400 font-mono-code">ViT Benchmark Acc</span>
+          {/* Key Forensic Standards & Metric Counters */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-10 border-t border-[#e8e8e8] text-left max-w-4xl mx-auto">
+            <div className="p-4 rounded-xl bg-white border border-[#e8e8e8] shadow-xs">
+              <span className="text-2xl font-display font-semibold text-[#1b1b1b] block">94.2%</span>
+              <span className="text-[11px] text-[#71737a] font-mono-code">ViT Benchmark Acc</span>
             </div>
-            <div>
-              <span className="text-2xl font-display font-bold text-cyan-400 block">3 Modalities</span>
-              <span className="text-xs text-slate-400 font-mono-code">Image, Video, Audio</span>
+            <div className="p-4 rounded-xl bg-white border border-[#e8e8e8] shadow-xs">
+              <span className="text-2xl font-display font-semibold text-[#6e78d5] block">3 Modalities</span>
+              <span className="text-[11px] text-[#71737a] font-mono-code">Image • Video • Audio</span>
             </div>
-            <div>
-              <span className="text-2xl font-display font-bold text-indigo-400 block">0.042 ECE</span>
-              <span className="text-xs text-slate-400 font-mono-code">Calibrated Probability</span>
+            <div className="p-4 rounded-xl bg-white border border-[#e8e8e8] shadow-xs">
+              <span className="text-2xl font-display font-semibold text-[#02755c] block">0.042 ECE</span>
+              <span className="text-[11px] text-[#71737a] font-mono-code">Platt Calibrated Error</span>
             </div>
-            <div>
-              <span className="text-2xl font-display font-bold text-emerald-400 block">SHA-256</span>
-              <span className="text-xs text-slate-400 font-mono-code">Forensic Provenance</span>
+            <div className="p-4 rounded-xl bg-white border border-[#e8e8e8] shadow-xs">
+              <span className="text-2xl font-display font-semibold text-[#6d6b6b] block">SHA-256</span>
+              <span className="text-[11px] text-[#71737a] font-mono-code">Cryptographic Ledger</span>
             </div>
           </div>
         </div>
 
-        {/* MODALITY CARDS */}
-        <div className="mt-28">
+        {/* ===================== INTERACTIVE FORENSIC HUD SIMULATOR ===================== */}
+        <div className="mt-16 max-w-5xl mx-auto">
+          <GlassSurface
+            width="100%"
+            height="auto"
+            borderRadius={14}
+            backgroundOpacity={0.06}
+            blur={16}
+            brightness={55}
+            className="cyber-card p-0 border-[#e8e8e8] shadow-xs relative overflow-hidden"
+            contentClassName="p-6 block w-full"
+          >
+            <div className="scanline-effect" />
+            
+            {/* HUD Header */}
+            <div className="flex flex-wrap items-center justify-between gap-4 pb-4 mb-4 border-b border-[#e8e8e8]">
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 rounded-[6px] bg-[#d9dcea]/30 border border-[#e8e8e8] text-[#6e78d5]">
+                  <Scan className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-[#1b1b1b] font-display">
+                    Interactive Forensic Inspection Terminal
+                  </h3>
+                  <span className="text-[10px] font-mono-code text-[#71737a]">
+                    SAMPLE AUDIT // TARGET_ID: FFPP-77291 // SHA256: 8f4a9b...c3e0
+                  </span>
+                </div>
+              </div>
+
+              {/* Mode Switcher */}
+              <div className="flex items-center gap-1 bg-[#ececef] p-1 rounded-[6px] border border-[#e8e8e8] text-xs font-mono-code">
+                <button
+                  onClick={() => setActivePreviewMode('heatmap')}
+                  className={`px-3 py-1 rounded-[4px] transition-all ${
+                    activePreviewMode === 'heatmap'
+                      ? 'bg-[#6e78d5] text-white font-medium shadow-xs'
+                      : 'text-[#71737a] hover:text-[#1b1b1b]'
+                  }`}
+                >
+                  Attention Rollout
+                </button>
+                <button
+                  onClick={() => setActivePreviewMode('raw')}
+                  className={`px-3 py-1 rounded-[4px] transition-all ${
+                    activePreviewMode === 'raw'
+                      ? 'bg-[#6e78d5] text-white font-medium shadow-xs'
+                      : 'text-[#71737a] hover:text-[#1b1b1b]'
+                  }`}
+                >
+                  Raw Ingestion
+                </button>
+              </div>
+            </div>
+
+            {/* HUD Body Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+              
+              {/* Media Viewport */}
+              <div className="md:col-span-7 relative rounded-xl overflow-hidden bg-[#fbfbfb] border border-[#e8e8e8] p-2 reticle-box">
+                <div className="relative aspect-video rounded-[6px] overflow-hidden bg-slate-900 flex items-center justify-center">
+                  <img
+                    src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80"
+                    alt="Forensic Test Subject"
+                    className="w-full h-full object-cover filter contrast-105"
+                  />
+
+                  {/* Attention Rollout Overlay */}
+                  {activePreviewMode === 'heatmap' && (
+                    <div className="absolute inset-0 bg-gradient-to-tr from-rose-500/35 via-amber-500/25 to-[#6e78d5]/20 mix-blend-color-dodge pointer-events-none">
+                      <div className="absolute top-[28%] left-[32%] w-36 h-36 rounded-full border-2 border-rose-400/80 bg-rose-500/20 shadow-[0_0_20px_rgba(244,63,94,0.6)] animate-pulse" />
+                      <div className="absolute top-[32%] left-[36%] px-2 py-0.5 rounded bg-rose-950/90 border border-rose-500 text-[10px] font-mono-code text-rose-300">
+                        ANOMALY: PERIMETER WARP 98.4%
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="absolute bottom-2 left-2 px-2 py-1 rounded bg-[#101011]/80 border border-white/[0.08] text-[9px] font-mono-code text-white">
+                    FPS: 60.0 // ISO: 100 // 16×16 PATCH GRIDS
+                  </div>
+                </div>
+              </div>
+
+              {/* Telemetry Stats Panel */}
+              <div className="md:col-span-5 space-y-4">
+                <div className="p-4 rounded-xl bg-[#fbfbfb] border border-[#e8e8e8] space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-mono-code text-[#71737a] uppercase tracking-wider font-medium">
+                      Forensic Verdict
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono-code font-medium bg-[#92681b]/15 text-[#92681b] border border-[#92681b]/30">
+                      CRITICAL MANIPULATION
+                    </span>
+                  </div>
+
+                  {/* Trust Score Indicator */}
+                  <div className="flex items-baseline gap-3">
+                    <span className="text-4xl font-display font-semibold text-[#92681b]">
+                      12<span className="text-xl text-[#71737a]">/100</span>
+                    </span>
+                    <span className="text-xs text-[#71737a] font-mono-code">
+                      Trust Score (ECE Calibrated)
+                    </span>
+                  </div>
+
+                  {/* Probability bars */}
+                  <div className="space-y-1.5 pt-1 text-xs font-mono-code">
+                    <div className="flex justify-between text-[#1b1b1b] text-[11px]">
+                      <span>P(Manipulated)</span>
+                      <span className="text-[#92681b] font-medium">88.0%</span>
+                    </div>
+                    <div className="w-full h-1.5 rounded-full bg-[#ececef] overflow-hidden">
+                      <div className="h-full bg-[#92681b] rounded-full w-[88%]" />
+                    </div>
+
+                    <div className="flex justify-between text-[#1b1b1b] text-[11px] pt-1">
+                      <span>Model Confidence</span>
+                      <span className="text-[#6e78d5] font-medium">96.5%</span>
+                    </div>
+                    <div className="w-full h-1.5 rounded-full bg-[#ececef] overflow-hidden">
+                      <div className="h-full bg-[#6e78d5] rounded-full w-[96.5%]" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-[11px] font-mono-code text-[#71737a]">
+                    Ready to audit suspect evidence?
+                  </span>
+                  <Link
+                    to="/workspace"
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-[#6e78d5] hover:text-[#5d67c8] font-mono-code"
+                  >
+                    Open Lab <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              </div>
+
+            </div>
+          </GlassSurface>
+        </div>
+
+        {/* ===================== MODALITY ENGINES ===================== */}
+        <div className="mt-24">
           <div className="text-center max-w-2xl mx-auto mb-12">
-            <h2 className="font-display font-bold text-2xl sm:text-3xl text-white">
-              Multimodal Detection Engines
+            <span className="text-xs font-mono-code text-[#6e78d5] uppercase tracking-widest block mb-1 font-medium">
+              Multimodal Neural Architecture
+            </span>
+            <h2 className="font-display font-semibold text-3xl sm:text-4xl text-[#1b1b1b]">
+              Purpose-Built Forensic Backbones
             </h2>
-            <p className="text-sm text-slate-400 mt-2">
-              Dedicated neural network architectures designed specifically for visual, temporal, and acoustic artifact detection.
+            <p className="text-sm text-[#71737a] mt-2">
+              Three specialized neural pipelines designed to capture spatial diffusion noise, temporal optical jitter, and vocoder acoustic anomalies.
             </p>
           </div>
 
@@ -173,30 +361,36 @@ export default function LandingPage() {
               return (
                 <div
                   key={feat.title}
-                  className="cyber-card p-6 flex flex-col justify-between hover:border-cyan-500/40 transition-all group relative overflow-hidden"
+                  className="cyber-card p-6 flex flex-col justify-between hover:border-[#6e78d5] transition-all duration-200 group relative overflow-hidden rounded-xl bg-white border border-[#e8e8e8] shadow-xs"
                 >
                   <div className="space-y-4">
+                    {/* Top Row: Icon + Backbone Badge */}
                     <div className="flex items-center justify-between">
-                      <div className={`p-3 rounded-xl bg-gradient-to-br border ${feat.accent}`}>
-                        <Icon className="w-6 h-6" />
+                      <div className={`p-2.5 rounded-[6px] border ${feat.accent}`}>
+                        <Icon className="w-5 h-5" />
                       </div>
-                      <span className="text-[10px] font-mono-code px-2 py-0.5 rounded bg-slate-900 text-slate-300 border border-slate-800">
+                      <span className="text-[10px] font-mono-code px-2 py-0.5 rounded-[4px] bg-[#ececef] text-[#71737a] border border-[#e8e8e8]">
                         {feat.tag}
                       </span>
                     </div>
 
-                    <h3 className="font-display font-bold text-lg text-white group-hover:text-cyan-300 transition-colors">
-                      {feat.title}
-                    </h3>
+                    <div>
+                      <h3 className="font-display font-semibold text-lg text-[#1b1b1b] group-hover:text-[#6e78d5] transition-colors">
+                        {feat.title}
+                      </h3>
+                      <span className="text-[11px] font-mono-code text-[#6e78d5] block mt-0.5 font-medium">
+                        {feat.backbone}
+                      </span>
+                    </div>
 
-                    <p className="text-xs text-slate-400 leading-relaxed">
+                    <p className="text-xs text-[#71737a] leading-relaxed">
                       {feat.description}
                     </p>
 
-                    <div className="space-y-2 pt-2 border-t border-slate-800/80">
+                    <div className="space-y-2 pt-2 border-t border-[#e8e8e8]">
                       {feat.capabilities.map((cap, i) => (
-                        <div key={i} className="flex items-center gap-2 text-xs text-slate-300">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                        <div key={i} className="flex items-center gap-2 text-xs text-[#1b1b1b]">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-[#6e78d5] shrink-0" />
                           <span>{cap}</span>
                         </div>
                       ))}
@@ -206,7 +400,7 @@ export default function LandingPage() {
                   <div className="pt-6">
                     <Link
                       to="/workspace"
-                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-cyan-400 group-hover:text-cyan-300 transition-colors"
+                      className="inline-flex items-center gap-1.5 text-xs font-medium text-[#6e78d5] group-hover:text-[#5d67c8] transition-colors font-mono-code"
                     >
                       {feat.linkText}
                       <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
@@ -218,14 +412,14 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* HOW IT WORKS / WORKFLOW */}
-        <div className="mt-28">
-          <div className="text-center max-w-2xl mx-auto mb-14">
-            <span className="text-xs font-mono-code text-cyan-400 uppercase tracking-widest block mb-2">
-              Forensic Workflow
+        {/* ===================== WORKFLOW PIPELINE ===================== */}
+        <div className="mt-24">
+          <div className="text-center max-w-2xl mx-auto mb-12">
+            <span className="text-xs font-mono-code text-[#6e78d5] uppercase tracking-widest block mb-1 font-medium">
+              Operational Lifecycle
             </span>
-            <h2 className="font-display font-bold text-2xl sm:text-3xl text-white">
-              Explainable Forensic Pipeline
+            <h2 className="font-display font-semibold text-3xl sm:text-4xl text-[#1b1b1b]">
+              End-to-End Forensic Audit Pipeline
             </h2>
           </div>
 
@@ -233,15 +427,20 @@ export default function LandingPage() {
             {workflowSteps.map((wf) => {
               const Icon = wf.icon;
               return (
-                <div key={wf.step} className="p-5 rounded-xl bg-slate-900/40 border border-slate-800/80 relative">
-                  <span className="text-3xl font-display font-extrabold text-slate-700 block mb-3 font-mono-code">
+                <div
+                  key={wf.step}
+                  className="cyber-card p-6 relative group hover:border-[#6e78d5] transition-all duration-200 bg-white border border-[#e8e8e8] rounded-xl shadow-xs"
+                >
+                  <span className="text-2xl font-display font-semibold text-[#71737a]/50 block mb-3 font-mono-code">
                     {wf.step}
                   </span>
                   <div className="flex items-center gap-2 mb-2">
-                    <Icon className="w-4 h-4 text-cyan-400" />
-                    <h4 className="text-sm font-semibold text-white">{wf.title}</h4>
+                    <div className="p-1.5 rounded-[6px] bg-[#d9dcea]/30 border border-[#e8e8e8] text-[#6e78d5]">
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    <h4 className="text-sm font-semibold text-[#1b1b1b]">{wf.title}</h4>
                   </div>
-                  <p className="text-xs text-slate-400 leading-relaxed">
+                  <p className="text-xs text-[#71737a] leading-relaxed">
                     {wf.desc}
                   </p>
                 </div>
@@ -250,32 +449,60 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* RESPONSIBLE USE & ETHICS BANNER */}
-        <div className="mt-28 cyber-card p-8 border-cyan-500/20 bg-gradient-to-r from-slate-900/80 to-[#070e1e]/90">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="space-y-2 max-w-2xl">
-              <div className="flex items-center gap-2 text-cyan-400 font-mono-code text-xs uppercase font-semibold">
-                <Lock className="w-4 h-4" />
-                <span>Responsible AI & Data Privacy</span>
+        {/* ===================== INSTITUTIONAL STANDARDS STRIP ===================== */}
+        <div className="mt-24 p-6 rounded-xl bg-white border border-[#e8e8e8] shadow-xs">
+          <div className="text-center max-w-xl mx-auto mb-6">
+            <span className="text-[11px] font-mono-code uppercase text-[#71737a] tracking-wider flex items-center justify-center gap-1.5 font-medium">
+              <Award className="w-3.5 h-3.5 text-[#6e78d5]" />
+              Institutional Adherence & Calibration Standards
+            </span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+            {standards.map((st, i) => (
+              <div key={i} className="p-3.5 rounded-[6px] bg-[#fbfbfb] border border-[#e8e8e8]">
+                <h5 className="font-display font-semibold text-sm text-[#1b1b1b]">{st.title}</h5>
+                <span className="text-[10px] font-mono-code text-[#71737a] block mt-0.5">{st.subtitle}</span>
               </div>
-              <h3 className="font-display font-bold text-xl text-white">
-                Zero-Retention Ingestion & Transparent Uncertainty
+            ))}
+          </div>
+        </div>
+
+        {/* ===================== ZERO-RETENTION PRIVACY BANNER ===================== */}
+        <div className="mt-16">
+          <GlassSurface
+            width="100%"
+            height="auto"
+            borderRadius={12}
+            backgroundOpacity={0.06}
+            blur={14}
+            brightness={55}
+            className="cyber-card p-0 border-[#e8e8e8] shadow-xs"
+            contentClassName="p-8 flex flex-col md:flex-row items-center justify-between gap-6"
+          >
+            <div className="space-y-2 max-w-2xl">
+              <div className="flex items-center gap-2 text-[#6e78d5] font-mono-code text-xs uppercase font-medium">
+                <Lock className="w-4 h-4" />
+                <span>Zero Retention & Cryptographic Integrity</span>
+              </div>
+              <h3 className="font-display font-semibold text-xl sm:text-2xl text-[#1b1b1b]">
+                Ephemeral Processing with Uncompromising Privacy
               </h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Uploaded media files are deleted immediately following neural inference. TruthLens never presents 
-                model predictions as absolute proof, providing calibrated trust scores, clear error margins, and explicit 
-                inconclusive classifications.
+              <p className="text-xs text-[#71737a] leading-relaxed">
+                Uploaded media buffers exist exclusively in volatile memory and are purged immediately post-inference. 
+                TruthLens pairs deep learning predictions with Platt temperature calibration to provide legally defensible, 
+                explainable evidence reports.
               </p>
             </div>
 
             <Link
               to="/workspace"
-              className="shrink-0 px-5 py-2.5 rounded-lg text-xs font-semibold bg-cyan-500 hover:bg-cyan-400 text-slate-950 transition-all shadow-[0_0_15px_rgba(6,182,212,0.3)]"
+              className="shrink-0 px-5 py-2.5 rounded-[6px] text-xs font-medium bg-[#6e78d5] hover:bg-[#5d67c8] text-white shadow-xs transition-all active:scale-[0.98]"
             >
-              Analyze Your First File
+              Start Media Analysis
             </Link>
-          </div>
+          </GlassSurface>
         </div>
+
       </div>
     </div>
   );

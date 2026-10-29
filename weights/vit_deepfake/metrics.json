@@ -1,0 +1,49 @@
+{
+  "model_name": "TruthLens-ViT-FineTuned-FF++",
+  "base_model": "google/vit-base-patch16-224",
+  "dataset": "FaceForensics++ C23 (xdxd003/ff-c23)",
+  "training_mode": "head_only",
+  "device": "cpu",
+  "epochs": 4,
+  "batch_size": 16,
+  "learning_rate": 0.0001,
+  "training_time_seconds": 132.15,
+  "train_samples": 256,
+  "val_samples": 64,
+  "metrics": {
+    "accuracy": 0.5625,
+    "precision": 0.5769,
+    "recall": 0.4688,
+    "f1_score": 0.5172,
+    "roc_auc": 0.5029,
+    "brier_score": 0.2679,
+    "expected_calibration_error": 0.232
+  },
+  "epoch_history": [
+    {
+      "epoch": 1,
+      "loss": 0.8246,
+      "train_accuracy": 0.3945,
+      "time_seconds": 32.4
+    },
+    {
+      "epoch": 2,
+      "loss": 0.7585,
+      "train_accuracy": 0.4336,
+      "time_seconds": 34.6
+    },
+    {
+      "epoch": 3,
+      "loss": 0.7193,
+      "train_accuracy": 0.4766,
+      "time_seconds": 31.1
+    },
+    {
+      "epoch": 4,
+      "loss": 0.6888,
+      "train_accuracy": 0.5078,
+      "time_seconds": 34.0
+    }
+  ],
+  "saved_weights_dir": "D:\\college work\\deepfake detection\\weights\\vit_deepfake"
+}

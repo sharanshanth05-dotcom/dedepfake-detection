@@ -59,3 +59,19 @@ scratch_test.jpg
 ml/datasets/*
 !ml/datasets/*.py
 !ml/datasets/.gitkeep
+
+# ML Datasets and Large Checkpoints (>100MB exceeds GitHub limit)
+ml/data/
+*.safetensors
+*.pt
+*.pth
+*.bin
+*.onnx
+weights/**/*.safetensors
+weights/**/*.bin
+weights/**/*.pt
+weights/**/*.pth
+!weights/**/config.json
+!weights/**/metrics.json
+!weights/**/preprocessor_config.json
+test_fake_jujutsu.jpg

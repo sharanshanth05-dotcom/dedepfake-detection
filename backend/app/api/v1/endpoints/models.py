@@ -78,6 +78,29 @@ MODEL_CARDS = [
     }
 ]
 
+import json
+from pathlib import Path
+
+def get_live_model_cards():
+    cards = [dict(c) for c in MODEL_CARDS]
+    candidate_paths = [
+        Path("weights/vit_deepfake/metrics.json"),
+        Path(__file__).resolve().parent.parent.parent.parent.parent / "weights" / "vit_deepfake" / "metrics.json"
+    ]
+    for p in candidate_paths:
+        if p.exists():
+            try:
+                with open(p, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                if "metrics" in data:
+                    cards[0]["evaluation_metrics"] = data["metrics"]
+                    cards[0]["dataset_version"] = f"FaceForensics++ C23 (Fine-Tuned on {data.get('train_samples', 0)} frames)"
+                    cards[0]["deployment_status"] = "active (fine-tuned)"
+                    break
+            except Exception:
+                pass
+    return cards
+
 @router.get("", include_in_schema=False)
 @router.get("/")
 def list_models(db: Session = Depends(get_db)):
@@ -97,9 +120,10 @@ def list_models(db: Session = Depends(get_db)):
             }
             for m in db_models
         ]
-    return MODEL_CARDS
+    return get_live_model_cards()
 
 @router.get("/cards")
 def get_model_cards():
     """Returns comprehensive Model Cards detailing architectures, training data, and ethics."""
-    return MODEL_CARDS
+    return get_live_model_cards()
+
