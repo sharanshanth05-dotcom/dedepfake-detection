@@ -116,7 +116,12 @@ export default function AttentionHeatmapViewer({ originalPreview, overlayPreview
         </div>
         {peakPatch && (
           <div className="text-[11px]">
-            Peak Saliency Patch: <span className="text-[#6e78d5] font-semibold">Token #{peakPatch}</span>
+            Peak Saliency Patch:{' '}
+            <span className="text-[#6e78d5] font-semibold">
+              {typeof peakPatch === 'object' && peakPatch !== null
+                ? `[Row ${peakPatch.row ?? 0}, Col ${peakPatch.col ?? 0}] (${Math.round((peakPatch.normalized_attention ?? 1) * 100)}% saliency)`
+                : `Token #${peakPatch}`}
+            </span>
           </div>
         )}
       </div>

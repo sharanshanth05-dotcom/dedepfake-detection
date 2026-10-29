@@ -43,23 +43,23 @@ export default function EvidenceCard({ evidence = [] }) {
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
                 <span className="text-xs font-semibold text-[#1b1b1b] capitalize">
-                  {item.evidence_type?.replace(/_/g, ' ')}
+                  {typeof item.evidence_type === 'string' ? item.evidence_type.replace(/_/g, ' ') : String(item.evidence_type ?? '')}
                 </span>
                 {item.timestamp_or_region && (
                   <span className="text-[10px] font-mono-code px-2 py-0.5 rounded-[4px] bg-[#ececef] text-[#1b1b1b] border border-[#e8e8e8] font-medium">
-                    {item.timestamp_or_region}
+                    {typeof item.timestamp_or_region === 'object' ? JSON.stringify(item.timestamp_or_region) : String(item.timestamp_or_region)}
                   </span>
                 )}
               </div>
 
               <p className="text-xs text-[#71737a] leading-relaxed">
-                {item.evidence_description}
+                {typeof item.evidence_description === 'object' ? JSON.stringify(item.evidence_description) : String(item.evidence_description ?? '')}
               </p>
 
               {item.evidence_reference && (
                 <div className="mt-2 text-[10px] font-mono-code text-[#71737a] flex items-center gap-1">
                   <Hash className="w-3 h-3 text-[#6e78d5]" />
-                  <span>Ref: {item.evidence_reference}</span>
+                  <span>Ref: {typeof item.evidence_reference === 'object' ? JSON.stringify(item.evidence_reference) : String(item.evidence_reference)}</span>
                 </div>
               )}
             </div>

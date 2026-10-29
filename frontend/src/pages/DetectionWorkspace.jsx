@@ -206,7 +206,10 @@ export default function DetectionWorkspace() {
         return;
       }
       setIsAnalyzing(false);
-      setErrorMsg(err.message || 'Forensic detection failed. Please try a different media file.');
+      const safeMsg = typeof err.response?.data?.detail === 'string'
+        ? err.response.data.detail
+        : (typeof err.message === 'string' ? err.message : 'Forensic detection failed. Please try a different media file.');
+      setErrorMsg(safeMsg);
     }
   };
 
@@ -363,16 +366,27 @@ export default function DetectionWorkspace() {
               </div>
 
               {!isAnalyzing && (
-                <button
-                  onClick={() => {
-                    setSelectedFile(null);
-                    setFilePreview(null);
-                  }}
-                  className="p-1.5 rounded-[6px] text-[#71737a] hover:text-[#92681b] hover:bg-[#ececef] transition-colors"
-                  title="Remove file"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setSelectedFile(null);
+                      setFilePreview(null);
+                    }}
+                    className="p-1.5 rounded-[6px] text-[#71737a] hover:text-[#92681b] hover:bg-[#ececef] transition-colors"
+                    title="Remove file"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    onClick={startAnalysis}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] font-medium text-xs bg-[#6e78d5] hover:bg-[#5d67c8] text-white shadow-xs transition-all active:scale-[0.98] font-mono-code"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 fill-white" />
+                    <span>Next: Run Audit</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               )}
             </div>
 
@@ -469,10 +483,10 @@ export default function DetectionWorkspace() {
 
                 <button
                   onClick={startAnalysis}
-                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-[6px] font-medium text-xs bg-[#6e78d5] hover:bg-[#5d67c8] text-white shadow-xs transition-all active:scale-[0.98]"
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-[6px] font-medium text-xs bg-[#6e78d5] hover:bg-[#5d67c8] text-white shadow-xs transition-all active:scale-[0.98] font-mono-code"
                 >
                   <Sparkles className="w-4 h-4 fill-white" />
-                  Execute Forensic Audit
+                  <span>Next: Execute Forensic Audit</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>

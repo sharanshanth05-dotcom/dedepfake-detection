@@ -38,7 +38,10 @@ export default function AnalysisResults() {
         const res = await apiClient.get(`/analysis/${id}`);
         setAnalysis(res.data);
       } catch (err) {
-        setError(err.response?.data?.detail || 'Failed to retrieve forensic record.');
+        const msg = typeof err.response?.data?.detail === 'string'
+          ? err.response.data.detail
+          : (typeof err.message === 'string' ? err.message : 'Failed to retrieve forensic record.');
+        setError(msg);
       } finally {
         setLoading(false);
       }
