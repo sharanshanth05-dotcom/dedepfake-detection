@@ -158,10 +158,8 @@ class ViTImageDetector:
         h, w = gray.shape
 
         # A. Blur / Motion Estimation
-        # Camera motion blur typically has subtle edge energy (e.g. 8 <= laplacian_var < 110).
-        # Ultra-flat AI generated textures have laplacian_var < 8.0 (synthetic smoothness, not optical blur).
         laplacian_var = float(cv2.Laplacian(gray, cv2.CV_64F).var())
-        is_soft_or_motion_blurred = (8.0 <= laplacian_var < (110.0 if is_video_frame else 55.0))
+        is_soft_or_motion_blurred = (8.0 <= laplacian_var < (80.0 if is_video_frame else 55.0))
 
         # B. 2D FFT Frequency Analysis
         f = np.fft.fft2(gray)
@@ -283,10 +281,11 @@ class ViTImageDetector:
         # G. Synthetic Art / Diffusion / Digital Render Risk
         neon_risk = float(np.clip((neon_sat - 0.04) / 0.08, 0.0, 1.0))
         flat_risk = 0.0
-        if flat_noise_ratio > 0.75 and smooth_areas > 0.70 and neon_sat > 0.035:
-            flat_risk = float(np.clip((flat_noise_ratio - 0.70) * 3.0, 0.0, 1.0))
+        # AI generators produce ultra-flat PRNU surfaces and smooth diffusion fields
+        if flat_noise_ratio > 0.60:
+            flat_risk = float(np.clip((flat_noise_ratio - 0.60) * 2.5, 0.0, 1.0))
 
-        synth_risk = max(neon_risk * 0.85 + flat_risk * 0.35, art_face_risk, flat_risk if neon_sat > 0.04 else 0.0)
+        synth_risk = max(neon_risk * 0.75 + flat_risk * 0.45, art_face_risk, flat_risk)
         synth_risk = float(np.clip(synth_risk, 0.0, 1.0))
 
         # H. ViT Attention Matrix & Deep Learning Classifier Logits
@@ -325,9 +324,11 @@ class ViTImageDetector:
         
         # Noise risk: AI images lack physical camera sensor PRNU noise, causing synthetic flat noise ratio
         noise_risk = 0.0
-        if not is_soft_or_motion_blurred:
-            if overall_noise_std < 0.65 and flat_noise_ratio > 0.65:
-                noise_risk = float(np.clip((0.65 - overall_noise_std) * 2.5 + (flat_noise_ratio - 0.65) * 1.5, 0.0, 1.0))
+        if not is_soft_or_motion_blurred or flat_noise_ratio > 0.65:
+            if flat_noise_ratio > 0.55:
+                noise_risk = float(np.clip((flat_noise_ratio - 0.55) / 0.30, 0.0, 1.0))
+            elif overall_noise_std < 0.60:
+                noise_risk = float(np.clip((0.60 - overall_noise_std) * 2.0, 0.0, 1.0))
         noise_risk = float(np.clip(noise_risk, 0.0, 1.0))
 
         # ELA risk: Compression uniformity discrepancy (natural photos with edges & background reach 2.0 - 4.0)
@@ -336,45 +337,40 @@ class ViTImageDetector:
 
         # Base multimodal anomaly
         base_anomaly = (
-            0.30 * fft_risk +
-            0.25 * noise_risk +
+            0.25 * fft_risk +
+            0.30 * noise_risk +
             0.15 * ela_risk +
             0.30 * max(face_risk, synth_risk)
         )
 
-        # ViT Neural Network Anomaly Signal (calibrated around FaceForensics++ 0.62 empirical baseline)
-        if vit_prob_manip is not None and not is_video_frame:
-            if vit_prob_manip > 0.72:
-                vit_signal = float(np.clip((vit_prob_manip - 0.72) * 1.5, 0.0, 0.35))
+        # ViT Neural Network Anomaly Signal (calibrated around empirical baseline)
+        if vit_prob_manip is not None:
+            if vit_prob_manip > 0.65:
+                vit_signal = float(np.clip((vit_prob_manip - 0.65) * 1.6, 0.0, 0.40))
                 base_anomaly = float(np.clip(base_anomaly + vit_signal, 0.0, 1.0))
-            elif vit_prob_manip < 0.60 and synth_risk < 0.15:
-                vit_credit = float(np.clip((0.60 - vit_prob_manip) * 0.4, 0.0, 0.15))
+            elif vit_prob_manip < 0.50 and synth_risk < 0.15 and not is_video_frame:
+                vit_credit = float(np.clip((0.50 - vit_prob_manip) * 0.4, 0.0, 0.15))
                 base_anomaly = float(max(0.0, base_anomaly - vit_credit))
 
-        if is_video_frame and not has_faces:
-            base_anomaly *= 0.65
-
         # AI Generative Signature Boost:
-        # Synthetic AI images exhibit ultra-flat plastic noise or neon digital vector fills
+        # Synthetic AI images/frames exhibit ultra-flat plastic noise or neon digital vector fills
         ai_synth_boost = 0.0
-        if not is_video_frame:
-            if synth_risk > 0.30:
-                ai_synth_boost = float(np.clip(synth_risk * 0.75, 0.35, 0.85))
-            elif overall_noise_std < 0.65 and flat_noise_ratio > 0.65:
-                if ela_discrepancy > 4.5 or fft_peak_factor > 6.0:
-                    ai_synth_boost = 0.45
-                else:
-                    ai_synth_boost = 0.30
+        if synth_risk > 0.30:
+            ai_synth_boost = float(np.clip(synth_risk * 0.70, 0.25, 0.85))
+        elif flat_noise_ratio > 0.65:
+            ai_synth_boost = float(np.clip((flat_noise_ratio - 0.65) * 1.5, 0.20, 0.50))
+        elif ela_discrepancy > 4.5 or fft_peak_factor > 5.5:
+            ai_synth_boost = 0.30
 
         composite_anomaly = float(np.clip(base_anomaly + ai_synth_boost, 0.0, 1.0))
 
         # Physical Optical Camera Sensor Credit:
         # Authentic camera captures have natural Poisson shot noise (overall_noise_std >= 0.85)
         # Reward physical capture integrity ONLY when:
-        # 1. No facial seam / artificial face risk (face_risk == 0)
-        # 2. No synthetic art / neon saturation signatures (synth_risk < 0.15 and neon_sat < 0.035)
-        # 3. Not video frame
-        if overall_noise_std >= 0.85 and face_risk == 0.0 and synth_risk < 0.15 and neon_sat < 0.035 and not is_video_frame:
+        # 1. Real sensor noise present (overall_noise_std >= 0.85 and flat_noise_ratio < 0.40)
+        # 2. No facial seam / artificial face risk (face_risk == 0)
+        # 3. No synthetic flat / neon risk (synth_risk < 0.15 and neon_sat < 0.035)
+        if overall_noise_std >= 0.85 and flat_noise_ratio < 0.40 and face_risk == 0.0 and synth_risk < 0.15 and neon_sat < 0.035:
             composite_anomaly = float(max(0.0, composite_anomaly - 0.15))
 
         # Authentic facial coherence credit
@@ -382,7 +378,7 @@ class ViTImageDetector:
             composite_anomaly = float(max(0.0, composite_anomaly - face_consistency_credit))
 
         # Calibrated Sigmoidal Probability Mapping:
-        midpoint = 0.46 if is_video_frame else 0.42
+        midpoint = 0.42
         p_manip = float(1.0 / (1.0 + np.exp(-10.0 * (composite_anomaly - midpoint))))
         p_manip = float(np.clip(p_manip, 0.02, 0.98))
         confidence = float(np.clip(0.88 + abs(p_manip - 0.5) * 0.20, 0.85, 0.98))

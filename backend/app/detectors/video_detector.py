@@ -83,12 +83,13 @@ class VideoDeepfakeDetector:
         mean_manip = float(np.mean(frame_manip_scores))
         median_manip = float(np.median(frame_manip_scores))
         p80_manip = float(np.percentile(frame_manip_scores, 80)) if len(frame_manip_scores) >= 3 else mean_manip
+        max_manip = float(np.max(frame_manip_scores))
         
-        # Check for consecutive suspicious frame streaks (characteristic of actual continuous face-swaps)
+        # Check for consecutive suspicious frame streaks (characteristic of face-swaps and generative clips)
         max_streak = 0
         cur_streak = 0
         for s in frame_manip_scores:
-            if s >= 0.50:
+            if s >= 0.45:
                 cur_streak += 1
                 if cur_streak > max_streak:
                     max_streak = cur_streak
@@ -98,36 +99,31 @@ class VideoDeepfakeDetector:
         suspicious_ratio = len(suspicious_timestamps) / max(1, len(frame_manip_scores))
         
         if len(frame_manip_scores) >= 3:
-            if max_streak < 2 and suspicious_ratio <= 0.25:
-                # Solitary optical/motion-blur glitch: prioritize robust median and mean
-                base_manip = (0.60 * mean_manip) + (0.40 * median_manip)
+            # If any significant portion or peak of the video has deepfake / AI generative features
+            if max_manip >= 0.65 or suspicious_ratio >= 0.20 or p80_manip >= 0.45:
+                base_manip = (0.40 * p80_manip) + (0.35 * max_manip) + (0.25 * mean_manip)
             else:
-                # Sustained anomalies across consecutive frames
-                base_manip = (0.35 * mean_manip) + (0.45 * p80_manip) + (0.20 * median_manip)
+                base_manip = (0.50 * mean_manip) + (0.30 * p80_manip) + (0.20 * median_manip)
         else:
-            base_manip = mean_manip
+            base_manip = max(mean_manip, max_manip)
             
         # Temporal consistency modulation
         temporal_anomalies = temporal_metrics.get("temporal_anomaly_count", 0)
         temporal_jitter = temporal_metrics.get("jitter_score", 0.0)
         
-        if temporal_anomalies == 0 and temporal_jitter < 0.05:
-            # Natural camera continuity bonus
+        if temporal_anomalies >= 1 or temporal_jitter > 0.08:
+            # Unnatural temporal flickering / phase jumps / warping
+            temporal_mod = min(0.30, (temporal_anomalies * 0.08) + (temporal_jitter * 0.45))
+        elif temporal_anomalies == 0 and temporal_jitter < 0.03 and base_manip < 0.30:
+            # Natural camera continuity bonus ONLY for demonstrably authentic visual frames
             temporal_mod = -0.05
-        elif temporal_anomalies >= 2 or temporal_jitter > 0.15:
-            # Unnatural temporal flickering / phase jumps
-            temporal_mod = min(0.25, (temporal_anomalies * 0.06) + (temporal_jitter * 0.40))
         else:
             temporal_mod = 0.0
             
         combined_manip = base_manip + temporal_mod
         
-        # Facial context adjustment
-        if total_faces_found == 0:
-            # Videos with zero human faces cannot contain face-swap deepfakes; dampen camera/scenery noise
-            combined_manip = combined_manip * 0.40
-        elif total_faces_found > 0 and max_streak >= 2:
-            # Sustained suspicious faces detected across frames
+        # Facial context adjustment: sustained face-swapping streaks elevate confidence
+        if max_streak >= 2:
             combined_manip = max(combined_manip, p80_manip)
             
         p_manipulated = float(np.clip(combined_manip, 0.02, 0.98))
@@ -151,13 +147,15 @@ class VideoDeepfakeDetector:
         
         # 6. Explanations
         if trust_score >= 80.0:
-            status_text = "demonstrates high physical and temporal authenticity with consistent sensor noise and seamless inter-frame transitions"
+            status_text = "demonstrates high physical and temporal authenticity with verified camera sensor noise and optical continuity"
         elif trust_score >= 60.0:
             status_text = "exhibits moderate authenticity consistent with standard mobile/web re-encoding"
         elif trust_score >= 40.0:
             status_text = "shows inconclusive characteristics with mixed forensic indicators"
+        elif trust_score >= 20.0:
+            status_text = "exhibits elevated manipulation indicators and synthetic generative signatures"
         else:
-            status_text = "exhibits strong multi-frame anomalies and temporal inconsistencies consistent with AI manipulation"
+            status_text = "exhibits critical multi-frame synthetic signatures, severe sensor noise deficits, or temporal deepfake artifacts"
 
         explanation = (
             f"Analyzed {len(sampled_frames)} sampled frames across {metadata['duration_seconds']}s of video. "
