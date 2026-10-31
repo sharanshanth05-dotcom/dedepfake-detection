@@ -270,12 +270,13 @@ class ViTImageDetector:
                 # In deepfake face swaps, synthetic faces exhibit severe unnatural smoothing or boundary mismatch
                 if art_face_risk > 0.0:
                     face_risk = art_face_risk
-                elif face_noise_std < 0.35 and outer_noise_std > 1.20:
-                    face_risk = 0.65
-                elif mismatch > 0.60:
-                    face_risk = float(np.clip((mismatch - 0.60) * 1.5, 0.0, 0.60))
+                elif face_noise_std < 0.50 and outer_noise_std > 0.75:
+                    # Unnatural synthetic facial skin smoothing / autoencoder denoising
+                    face_risk = float(np.clip(0.45 + (0.75 - face_noise_std) * 0.5, 0.45, 0.85))
+                elif mismatch > 0.35:
+                    face_risk = float(np.clip((mismatch - 0.35) * 1.8, 0.20, 0.85))
                 else:
-                    if art_face_risk == 0.0 and neon_sat < 0.035 and flat_noise_ratio < 0.70:
+                    if art_face_risk == 0.0 and neon_sat < 0.035 and flat_noise_ratio < 0.70 and face_noise_std >= 0.65:
                         face_consistency_credit = 0.15
 
         # G. Synthetic Art / Diffusion / Digital Render Risk
@@ -307,6 +308,33 @@ class ViTImageDetector:
                     vit_dispersion = float(np.std(attn_flat) / (np.mean(attn_flat) + 1e-6))
             except Exception as e:
                 attn_grid = None
+
+            # If faces are present, also evaluate cropped facial ROI through ViT
+            # (FaceForensics++ fine-tuned models are trained specifically on face crops)
+            if has_faces:
+                try:
+                    pf = faces[0]
+                    fw = int(pf.get("width", pf.get("w", 0)))
+                    fh = int(pf.get("height", pf.get("h", 0)))
+                    if fw > 20 and fh > 20:
+                        pad_w = int(fw * 0.25)
+                        pad_h = int(fh * 0.25)
+                        cx1 = max(0, int(pf.get("x", 0)) - pad_w)
+                        cy1 = max(0, int(pf.get("y", 0)) - pad_h)
+                        cx2 = min(w, int(pf.get("x", 0)) + fw + pad_w)
+                        cy2 = min(h, int(pf.get("y", 0)) + fh + pad_h)
+                        face_roi = img_rgb.crop((cx1, cy1, cx2, cy2))
+                        f_inputs = processor(images=face_roi, return_tensors="pt").to(device)
+                        with torch.no_grad():
+                            f_outputs = model(**f_inputs)
+                        if hasattr(f_outputs, "logits") and f_outputs.logits is not None and f_outputs.logits.shape[-1] == 2:
+                            face_vit_prob = float(torch.softmax(f_outputs.logits, dim=1)[0, 1].cpu().item())
+                            if vit_prob_manip is not None:
+                                vit_prob_manip = max(vit_prob_manip, face_vit_prob)
+                            else:
+                                vit_prob_manip = face_vit_prob
+                except Exception as e:
+                    pass
 
         if attn_grid is None:
             diff_resized = cv2.resize(diff.mean(axis=2), (14, 14), interpolation=cv2.INTER_AREA)
@@ -345,11 +373,11 @@ class ViTImageDetector:
 
         # ViT Neural Network Anomaly Signal (calibrated around empirical baseline)
         if vit_prob_manip is not None:
-            if vit_prob_manip > 0.65:
-                vit_signal = float(np.clip((vit_prob_manip - 0.65) * 1.6, 0.0, 0.40))
+            if vit_prob_manip > 0.50:
+                vit_signal = float(np.clip((vit_prob_manip - 0.45) * 1.5, 0.15, 0.75))
                 base_anomaly = float(np.clip(base_anomaly + vit_signal, 0.0, 1.0))
-            elif vit_prob_manip < 0.50 and synth_risk < 0.15 and not is_video_frame:
-                vit_credit = float(np.clip((0.50 - vit_prob_manip) * 0.4, 0.0, 0.15))
+            elif vit_prob_manip < 0.35 and synth_risk < 0.15 and not is_video_frame:
+                vit_credit = float(np.clip((0.35 - vit_prob_manip) * 0.3, 0.0, 0.10))
                 base_anomaly = float(max(0.0, base_anomaly - vit_credit))
 
         # AI Generative Signature Boost:

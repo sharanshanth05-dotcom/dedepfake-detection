@@ -99,9 +99,15 @@ class VideoDeepfakeDetector:
         suspicious_ratio = len(suspicious_timestamps) / max(1, len(frame_manip_scores))
         
         if len(frame_manip_scores) >= 3:
-            # If any significant portion or peak of the video has deepfake / AI generative features
-            if max_manip >= 0.65 or suspicious_ratio >= 0.20 or p80_manip >= 0.45:
-                base_manip = (0.40 * p80_manip) + (0.35 * max_manip) + (0.25 * mean_manip)
+            # Forensic Integrity Principle:
+            # If high-confidence manipulated frames or AI generation artifacts are found (e.g. max_manip >= 0.75),
+            # the video is compromised and CANNOT be diluted away by unmanipulated background frames.
+            if max_manip >= 0.75:
+                base_manip = max(0.85, max_manip * 0.92, (0.50 * max_manip) + (0.35 * p80_manip) + (0.15 * mean_manip))
+            elif max_manip >= 0.55 or suspicious_ratio >= 0.15 or p80_manip >= 0.40:
+                base_manip = max(0.70, (0.45 * max_manip) + (0.35 * p80_manip) + (0.20 * mean_manip))
+            elif max_streak >= 2:
+                base_manip = max(0.65, p80_manip)
             else:
                 base_manip = (0.50 * mean_manip) + (0.30 * p80_manip) + (0.20 * median_manip)
         else:
@@ -114,7 +120,7 @@ class VideoDeepfakeDetector:
         if temporal_anomalies >= 1 or temporal_jitter > 0.08:
             # Unnatural temporal flickering / phase jumps / warping
             temporal_mod = min(0.30, (temporal_anomalies * 0.08) + (temporal_jitter * 0.45))
-        elif temporal_anomalies == 0 and temporal_jitter < 0.03 and base_manip < 0.30:
+        elif temporal_anomalies == 0 and temporal_jitter < 0.03 and base_manip < 0.30 and max_manip < 0.40:
             # Natural camera continuity bonus ONLY for demonstrably authentic visual frames
             temporal_mod = -0.05
         else:
@@ -124,7 +130,13 @@ class VideoDeepfakeDetector:
         
         # Facial context adjustment: sustained face-swapping streaks elevate confidence
         if max_streak >= 2:
-            combined_manip = max(combined_manip, p80_manip)
+            combined_manip = max(combined_manip, 0.75, p80_manip)
+            
+        # Anchor manipulation when peak manipulation frame is detected
+        if max_manip >= 0.75:
+            combined_manip = max(combined_manip, 0.85)
+        elif max_manip >= 0.55:
+            combined_manip = max(combined_manip, 0.65)
             
         p_manipulated = float(np.clip(combined_manip, 0.02, 0.98))
         p_authentic = float(1.0 - p_manipulated)

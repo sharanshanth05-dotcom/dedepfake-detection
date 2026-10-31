@@ -43,9 +43,19 @@ def extract_sampled_frames(
     
     video_fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+    duration = total_frames / video_fps if video_fps > 0 else 0.0
     
-    # Calculate step in frames
-    step = max(1, int(video_fps / sample_fps))
+    # Adaptive sampling:
+    # Dense sampling for short clips (1-5s) so transient face-swaps or AI generation artifacts
+    # are never missed, while distributing up to max_frames for longer recordings.
+    if total_frames > 0:
+        if total_frames <= max_frames:
+            step = 1
+        else:
+            target_frames = min(max_frames, max(15, min(total_frames, int(duration * 3.0))))
+            step = max(1, total_frames // target_frames)
+    else:
+        step = max(1, int(video_fps / sample_fps))
     
     sampled_frames = []
     frame_idx = 0
