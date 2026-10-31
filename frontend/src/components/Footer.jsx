@@ -83,10 +83,39 @@ export default function Footer() {
           </div>
         </div>
 
+        {/* Project Authors & Research Contributors Strip */}
+        <div className="pt-6 pb-6 border-t border-[#e8e8e8] flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1.5">
+            <span className="text-[10px] font-mono-code uppercase tracking-wider text-[#71737a] font-semibold flex items-center gap-1.5">
+              <Award className="w-3.5 h-3.5 text-[#6e78d5]" />
+              PROJECT RESEARCH &amp; DEVELOPMENT TEAM
+            </span>
+            <div className="flex flex-wrap items-center gap-2 pt-0.5">
+              {[
+                'P. Faizal Mohamed',
+                'S. Parthasarathi',
+                'C. Shalini',
+                'S. Sharanshanth',
+              ].map((author) => (
+                <span
+                  key={author}
+                  className="inline-flex items-center px-3 py-1 rounded-[6px] bg-white border border-[#e8e8e8] text-[#1b1b1b] text-xs font-medium shadow-xs hover:border-[#6e78d5] transition-colors"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#6e78d5] mr-2"></span>
+                  {author}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div className="text-xs font-mono-code text-[#71737a]">
+            Deepfake Detection &amp; Media Forensics System
+          </div>
+        </div>
+
         {/* Bottom Bar */}
-        <div className="pt-8 border-t border-[#e8e8e8] flex flex-col sm:flex-row items-center justify-between gap-4 text-[#71737a] text-[11px] font-mono-code">
+        <div className="pt-6 border-t border-[#e8e8e8] flex flex-col sm:flex-row items-center justify-between gap-4 text-[#71737a] text-[11px] font-mono-code">
           <div>
-            © 2026 TruthLens AI — Multimodal Deepfake Forensics & Synthetic Media Verification.
+            © 2026 TruthLens AI — Developed by P. Faizal Mohamed, S. Parthasarathi, C. Shalini, S. Sharanshanth.
           </div>
           <div className="flex items-center gap-4">
             <span className="text-[#1b1b1b]">SHA-256 Provenance Hashing</span>
